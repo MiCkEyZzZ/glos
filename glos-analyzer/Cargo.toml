@@ -1,0 +1,13 @@
+[package]
+name = "glos-analyzer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mikhail <mikhail.f.zhuravlev@gmail.com>"]
+license = "Apache-2.0"
+description = ""
+repository = "https://github.com/MiCkEyZzZ/glos/glos-analyzer"
+readme = "README.md"
+homepage = "https://github.com/MiCkEyZzZ/glos/glos-analyzer"
+publish = false
+
+[dependencies]

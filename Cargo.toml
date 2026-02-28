@@ -1,0 +1,46 @@
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+authors = ["Mikhail <mikhail.f.zhuravlev@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/MiCkEyZzZ/glos"
+
+[workspace]
+resolver = "2"
+members = [
+  "glos-core",
+  "glos-ui",
+  "glos-recorder",
+  "glos-replayer",
+  "glos-analyzer",
+  "glos-cli",
+]
+
+# Общие зависимости (опционально)
+[workspace.dependencies]
+anyhow = "1.0"
+lz4_flex = { version = "0.12", default-features = false }
+lz4 = "1.28.1"
+crossbeam-channel = "0.5"
+hackrfone = "0.4.0"
+log = "0.4"
+env_logger = "0.11"
+
+# Random для примеров (опционально)
+rand = "0.8"
+
+crc32fast = "1.5.0"
+tempfile = "3.23.0"
+thiserror = "2.0.17"
+byteorder = "1.4.3"
+
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+clap = { version = "4", features = ["derive"] }
+ctrlc = { version = "3", features = ["termination"] }
+
+# Настройки сборки (общие)
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

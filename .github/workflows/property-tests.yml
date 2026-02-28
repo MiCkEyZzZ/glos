@@ -1,0 +1,100 @@
+name: Property-based Tests
+
+on:
+  push:
+    branches: [main, property-testing]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 2 * * *" # Extended run at night
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # 1. Собираем проект один раз
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Build tests
+        run: cargo test --no-run --test property_tests
+
+  # 2. Запускаем тесты в матрице без повторной сборки
+  property-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust: stable
+            mode: quick
+            cases: 100
+            timeout: 5
+          - rust: stable
+            mode: normal
+            cases: 1000
+            timeout: 10
+          - rust: stable
+            mode: extended
+            cases: 10000
+            timeout: 30
+          - rust: beta
+            mode: quick
+            cases: 100
+            timeout: 5
+          - rust: beta
+            mode: normal
+            cases: 1000
+            timeout: 10
+          - rust: nightly
+            mode: quick
+            cases: 100
+            timeout: 5
+          - rust: nightly
+            mode: normal
+            cases: 1000
+            timeout: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Run property tests (${{ matrix.mode }})
+        run: |
+          echo "Running property tests with ${{ matrix.cases }} cases..."
+          PROPTEST_CASES=${{ matrix.cases }} cargo test --test property_tests -- --nocapture
+        timeout-minutes: ${{ matrix.timeout }}
+
+  # 3. Extended nightly fuzzing по расписанию
+  nightly-fuzzing:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Extended nightly fuzz run
+        run: |
+          echo "Starting extended nightly fuzz run..."
+          PROPTEST_CASES=50000 cargo test --test property_tests -- --nocapture
+        timeout-minutes: 120

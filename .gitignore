@@ -1,0 +1,35 @@
+# macOS системные файлы
+.DS_Store
+
+# Артефакты сборки Rust
+target/
+dist
+tmp
+**/cargo-target
+Cargo.lock
+
+# Директории и файлы редакторов
+.idea/
+.vscode/
+.zed/
+.trunk
+*.iml
+out/
+.devcontainer/
+
+# Файлы окружения и секреты
+.env
+
+# Рабочее пространство VSCode
+*.code-workspace
+
+# Сборка WebAssembly
+*.wasm
+
+# Разное
+debug/
+results
+*.proptest-regressions
+/docs/план_развития.md
+/docs/схема_проекта.md
+deps.txt

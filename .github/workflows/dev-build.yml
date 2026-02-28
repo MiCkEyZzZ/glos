@@ -1,0 +1,64 @@
+name: Development Build
+
+on:
+  push:
+    tags: ["v*.*.*"]
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Skip tests"
+        type: boolean
+        default: true
+      profile:
+        description: "Cargo profile"
+        type: choice
+        options:
+          - dev
+          - release
+          - nightly
+        default: dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ inputs.profile == 'nightly' && 'nightly' || 'stable' }}
+          override: true
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Lint with Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build
+        run: |
+          if [ "${{ inputs.profile }}" = "release" ]; then
+            cargo build --release
+          elif [ "${{ inputs.profile }}" = "nightly" ]; then
+            cargo +nightly build
+          else
+            cargo build
+          fi
+
+      - name: Run tests
+        if: ${{ !inputs.skip_tests }}
+        run: |
+          if [ "${{ inputs.profile }}" = "release" ]; then
+            cargo test --release -- --test-threads=1
+          elif [ "${{ inputs.profile }}" = "nightly" ]; then
+            cargo +nightly test -- --test-threads=1
+          else
+            cargo test -- --test-threads=1
+          fi

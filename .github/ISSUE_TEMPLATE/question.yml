@@ -1,0 +1,32 @@
+name: Question
+description: Ask the Glos developers or community
+title: "[QUESTION] <short summary>"
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        👋 **Welcome!**
+
+        This issue tracker is primarily for reporting bugs and suggesting improvements to Glos.
+
+        For general usage questions, please check our community resources first:
+        - [Glos Community Chat (Pachca)](https://app.pachca.com/join?invite_token=EakW3nIgma_ezqFc&company_name=Glos+Community&company_id=416542)
+        - [Glos Discussions](https://github.com/MiCkEyZzZ/glos/discussions)
+
+        Please also search existing issues before submitting your question.
+        If your question is about a third-party client or integration, consider reaching out to its maintainers.
+
+        ---
+        If you still have a question, please describe it below:
+
+  - type: textarea
+    id: your_question
+    attributes:
+      label: Your question
+      description: Please clearly describe your question about Glos.
+      placeholder: |
+        Example:
+        How can I configure Glos to use a custom authentication backend?
+    validations:
+      required: true

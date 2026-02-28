@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust (stable)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Ensure target toolchain is installed
+        run: rustup target add $TARGET || true
+
+      - name: Build release (workspace)
+        run: cargo build --workspace --release --target $TARGET
+
+      - name: List release artifacts
+        run: |
+          echo "Artifacts in target/${TARGET}/release:"
+          ls -la target/${TARGET}/release || true
+
+      - name: Collect executables into dist/
+        run: |
+          mkdir -p dist
+          for f in target/${TARGET}/release/*; do
+            # skip directories and rlibs and deps files
+            if [ -f "$f" ] && [ -x "$f" ] && [[ "$(basename $f)" != *.d ]] && [[ "$(basename $f)" != *.rlib ]] ; then
+              echo "Copying $(basename $f)"
+              cp "$f" dist/
+            fi
+          done
+          ls -la dist
+
+      - name: Archive dist
+        run: |
+          VERSION=${GITHUB_REF_NAME#refs/tags/}
+          tar -C dist -czf glos-${VERSION}-${TARGET}.tar.gz .
+          ls -la glos-${VERSION}-${TARGET}.tar.gz
+
+      - name: Create GitHub Release and upload artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          files: glos-${GITHUB_REF_NAME#refs/tags/}-${TARGET}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

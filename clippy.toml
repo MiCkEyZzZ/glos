@@ -1,0 +1,30 @@
+# Основные настройки для Clippy
+upper-case-acronyms-aggressive = true # Применяйте строгий стиль для сокращений
+
+# Немного смягчены правила, чтобы избежать блокировки полезного кода.
+avoid-breaking-exported-api = false # Не блокировать изменения в экспортируемых API
+
+# --- Безопасные/критичные запреты ---
+[[disallowed-methods]]
+path = "time::now"
+allow-invalid = true
+reason = "time::now небезопасен (RUSTSEC) — используйте std::time::Instant или chrono/explicit clocks."
+
+[[disallowed-methods]]
+path = "time::at"
+allow-invalid = true
+reason = "time::at небезопасен (RUSTSEC)."
+
+[[disallowed-methods]]
+path = "time::at_utc"
+allow-invalid = true
+reason = "time::at_utc небезопасен (RUSTSEC)."
+
+[[disallowed-methods]]
+path = "std::mem::transmute"
+reason = "transmute ломает систему типов и опасен; используйте safe-конверсии или строго ревью."
+
+# --- Thread / runtime hooks ---
+[[disallowed-methods]]
+path = "std::thread::Builder::spawn"
+reason = "Потоки должны создаваться через проектную обёртку (чтобы инициализировать системные hooks/логирование/pprof)."

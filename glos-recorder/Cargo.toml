@@ -1,0 +1,30 @@
+[package]
+name = "glos-recorder"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mikhail <mikhail.f.zhuravlev@gmail.com>"]
+license = "Apache-2.0"
+description = "GLOS IQ signal recorder — streams SDR samples to .glos files"
+repository = "https://github.com/MiCkEyZzZ/glos/glos-recorder"
+readme = "README.md"
+homepage = "https://github.com/MiCkEyZzZ/glos/glos-recorder"
+publish = false
+
+[dependencies]
+glos-core = { path = "../glos-core" }
+
+thiserror = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+tempfile = { workspace = true }
+crossbeam-channel = { workspace = true }
+hackrfone = { workspace = true, optional = true }
+
+[features]
+# Это не обртка над libhackrf, а переработка libhackrf на Rust
+# с использованием пользовательской библиотеки Rust nusb.
+# Для полной поддержки ф-й лучше использовать официальную библиотеку
+# libhackrf написанную на Си.
+hackrf = ["dep:hackrfone"]
+
+default = []

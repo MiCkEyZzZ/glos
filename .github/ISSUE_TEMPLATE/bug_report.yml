@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a bug in the Glos database
+title: "[BUG]"
+labels: [bug]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the template below.
+
+  - type: input
+    id: description
+    attributes:
+      label: What went wrong?
+      description: Describe the bug in detail.
+      placeholder: The database panicked when I called `SET foo bar`…
+
+  - type: input
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the minimal steps to reproduce the issue.
+      placeholder: |
+        1. Start glos
+        2. Run `SET foo bar`
+        3. Observe panic
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust version, Glos version, etc.
+      placeholder: e.g. Ubuntu 22.04, nightly-2025-05-10
