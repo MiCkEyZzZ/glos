@@ -179,8 +179,6 @@ Typical workflow:
 GLOS (record) → GLINT (analysis) → USMET (storage/visualization)
 ```
 
----
-
 ## Project Maturity
 
 | Component   | Status                |
@@ -191,8 +189,6 @@ GLOS (record) → GLINT (analysis) → USMET (storage/visualization)
 | replayer    | 🟡 prototype          |
 | analyzer    | 🔴 early stage        |
 | UI          | 🔴 experimental       |
-
----
 
 ## Safety & legal notes
 
