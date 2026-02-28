@@ -10,7 +10,9 @@ use std::fs::File;
 use glos_core::serialization::{read_all_blocks, GlosReader};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let input_path = "glos-core/test_output.glos";
+    let input_path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "recording.glos".to_string());
 
     // --- GlosReader валидирует заголовок при открытии ---
     let file = File::open(input_path)?;
