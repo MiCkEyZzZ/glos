@@ -173,7 +173,7 @@ impl SdrDevice for SimulatedDevice {
 }
 
 /// Создаёт нужное устройство по конфигурации.
-pub fn create_device(config: RecorderConfig) -> RecorderResult<Box<dyn SdrDevice>> {
+pub fn create_device(config: &RecorderConfig) -> RecorderResult<Box<dyn SdrDevice>> {
     match &config.device {
         DeviceKind::Simulated => Ok(Box::new(SimulatedDevice::new(
             config.sample_rate_hz,
