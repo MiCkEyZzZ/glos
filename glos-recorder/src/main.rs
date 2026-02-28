@@ -60,7 +60,7 @@ struct Cli {
 
 fn parse_iq_format(s: &str) -> Result<IqFormat, String> {
     match s.to_lowercase().as_str() {
-        "in8" | "i8" => Ok(IqFormat::Int8),
+        "int8" | "i8" => Ok(IqFormat::Int8),
         "int16" | "i16" => Ok(IqFormat::Int16),
         "float32" | "f32" => Ok(IqFormat::Float32),
         _ => Err(format!(

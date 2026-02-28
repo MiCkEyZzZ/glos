@@ -35,7 +35,8 @@ The project is designed as a **set of reusable components**, not a monolithic ap
 - [Architecture](#architecture)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
-- [CLI examples](#cli-examples)
+- [Testing](#testing)
+- [Recorder Usage](#recorder-usage)
 - [.glos file format](#glos-file-format-short)
 - [Integration](#integration)
 - [Project Maturity](#project-maturity)
@@ -124,35 +125,103 @@ glos/
 > Prerequisites: Rust (stable toolchain).
 > Optional SDR backends: SoapySDR / RTL-SDR / PlutoSDR / USRP.
 
-Build:
+Build workspace:
 
 ```bash
 cargo build --workspace --release
+```
 
-# Run tests
+Run tests:
+
+```bash
 cargo test --workspace
+```
 
-# Recorder mock mode (no hardware required)
-cargo run -p glos-recorder --release -- --mock
+## Testing
 
-# Example with device
+### Run all workspace tests
+
+```bash
+cargo test --workspace
+```
+
+### Test only `glos-core`
+
+```bash
+cargo test -p glos-core
+```
+
+### Test only `glos-recorder`
+
+```bash
+cargo test -p glos-recorder
+```
+
+### Tests with logs enabled
+
+```bash
+RUST_LOG=info cargo test -p glos-recorder -- --nocapture
+```
+
+### glos-core integration tests
+
+```bash
+cargo test -p glos-core --test integration_tests
+```
+
+## Recorder Usage
+
+### Simulator mode (no hardware)
+
+```bash
 cargo run -p glos-recorder --release -- \
-  --device /dev/sdr0 \
-  --output session1.glos \
+  --device sim \
+  --freq 1602MHz \
+  --rate 2MHz \
+  --gain 40 \
+  --output signal.glos \
+  --duration 5
+```
+
+### Simulator with LZ4 compression
+
+```bash
+cargo run -p glos-recorder --release -- \
+  --device sim \
+  --freq 433MHz \
+  --rate 2MHz \
+  --compress lz4 \
+  --output signal_lz4.glos \
+  --duration 10
+```
+
+### HackRF One recording
+
+Requirements:
+
+- `--features hackrf`
+- system package `libhackrf-dev`
+
+```bash
+sudo apt install libhackrf-dev
+```
+
+Run:
+
+```bash
+cargo run -p glos-recorder --release --features hackrf -- \
+  --device hackrf \
+  --freq 1602MHz \
+  --rate 2MHz \
+  --gain 40 \
+  --output hackrf.glos \
   --duration 60
 ```
 
-## CLI examples
+### Validate recorded file
 
 ```bash
-# Record
-glos-recorder --device /dev/sdr0 --output session1.glos --duration 60
-
-# Replay
-glos-replayer --input session1.glos --output udp://127.0.0.1:5000
-
-# Analyze
-glos-analyzer --input session1.glos --plot spectrum,waterfall
+cargo run -p glos-core --example read_glos_file
 ```
 
 ## .glos file format (short)
