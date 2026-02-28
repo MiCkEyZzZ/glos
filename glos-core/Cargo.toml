@@ -15,12 +15,12 @@ name = "glos_core"
 path = "src/lib.rs"
 
 [dependencies]
-crc32fast = { workspace = true }
-tempfile = { workspace = true }
-thiserror = { workspace = true }
 byteorder = { workspace = true }
+crc32fast = { workspace = true }
 lz4 = { workspace = true }
 lz4_flex = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }

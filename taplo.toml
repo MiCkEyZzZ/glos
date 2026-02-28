@@ -16,7 +16,6 @@ array_auto_expand = true
 array_auto_collapse = false
 # Делать компактные массивы (убирает лишние пробелы).
 compact_arrays = true
-compact_arrays = true
 # Не схлопывать inline-таблицы в одну строку (оставлять читабельными).
 compact_inline_tables = false
 # Добавлять запятую после последнего элемента массива (trailing comma).

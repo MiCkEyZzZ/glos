@@ -13,18 +13,19 @@ publish = false
 [dependencies]
 glos-core = { path = "../glos-core" }
 
-thiserror = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-tempfile = { workspace = true }
+clap = { workspace = true }
 crossbeam-channel = { workspace = true }
+ctrlc = { workspace = true, features = ["termination"] }
+env_logger = { workspace = true }
 hackrfone = { workspace = true, optional = true }
+log = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
 
 [features]
 # Это не обртка над libhackrf, а переработка libhackrf на Rust
 # с использованием пользовательской библиотеки Rust nusb.
 # Для полной поддержки ф-й лучше использовать официальную библиотеку
 # libhackrf написанную на Си.
-hackrf = ["dep:hackrfone"]
-
+hackrf = ["hackrfone"]
 default = []
