@@ -237,16 +237,25 @@ See **glos-core** for the canonical implementation and tests.
 
 ## Integration
 
-GLOS is intended to integrate with complementary tooling:
+GLOS is the first component of a larger GNSS experimentation ecosystem.
 
-- **GLINT** — integrity monitoring and anomaly detection
-- **USMET** — telemetry storage and aggregation backend
+Future companion projects:
 
-Typical workflow:
+- **GLINT** — signal integrity analysis and anomaly detection
+- **USMET** — telemetry storage, aggregation and visualization
+
+Planned workflow:
 
 ```
-GLOS (record) → GLINT (analysis) → USMET (storage/visualization)
+GLOS (signal capture)
+          ↓
+GLINT (analysis & detection)
+          ↓
+USMET (storage & visualization)
 ```
+
+Each project is developed independently and released separately.
+GLOS remains fully usable as a standalone recording and replay tool.
 
 ## Project Maturity
 

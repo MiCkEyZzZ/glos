@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Mikhail <mikhail.f.zhuravlev@gmail.com>"]
 license = "Apache-2.0"
-description = ""
+description = "GLOS UI"
 repository = "https://github.com/MiCkEyZzZ/glos/glos-ui"
 readme = "README.md"
 homepage = "https://github.com/MiCkEyZzZ/glos/glos-ui"
@@ -32,7 +32,3 @@ mock = []
 
 [dev-dependencies]
 approx = "0.5.1"
-
-[profile.release]
-opt-level = 3
-lto = true
