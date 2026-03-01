@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use glos_core::{Compression, IqFormat, SdrType};
+use glos_types::{Compression, IqFormat, SdrType};
 
 /// Тип SDR устройства (выбор при старте).
 #[derive(Debug, Clone, PartialEq, Eq)]

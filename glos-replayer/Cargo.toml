@@ -1,6 +1,18 @@
 [package]
 name = "glos-replayer"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "GLOS IQ signal replayer - stream .glos recording over UDP"
 
 [dependencies]
+glos-core = { path = "../glos-core" }
+glos-types = { path = "../glos-types" }
+
+clap = { workspace = true }
+ctrlc = { workspace = true, features = ["termination"] }
+env_logger = { workspace = true }
+log = { workspace = true }
+tempfile = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

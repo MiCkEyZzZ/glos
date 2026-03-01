@@ -6,7 +6,8 @@
 //! # Быстрый старт
 //!
 //! ```no_run
-//! use glos_core::{GlosHeader, IqBlock, SdrType};
+//! use glos_types::{GlosHeader, IqBlock, SdrType};
+//! use glos_core::{GlosHeaderExt, IqBlockExt};
 //! use std::fs::File;
 //! use std::io::Write;
 //!
@@ -19,13 +20,14 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ``
 
-pub mod error;
+pub mod binary;
 pub mod format;
 pub mod replayer;
 pub mod serialization;
 
-pub use error::*;
+pub use binary::*;
 pub use format::*;
+pub use replayer::*;
 pub use serialization::*;
 
 /// Версия библиотеки.

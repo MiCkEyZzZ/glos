@@ -8,8 +8,8 @@ use std::{
 };
 
 use clap::Parser;
-use glos_core::{Compression, IqFormat};
 use glos_recorder::{create_device, parse_freq_hz, DeviceKind, RecorderConfig, RecordingPipeline};
+use glos_types::{Compression, IqFormat};
 use log::{error, info, warn};
 
 #[derive(Parser, Debug)]

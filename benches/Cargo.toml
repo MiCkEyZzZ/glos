@@ -1,0 +1,17 @@
+[package]
+name = "glos-benchmark"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bench]]
+name = "glos-benchmark"
+path = "benches/recorder_benchmark/recorder_bench.rs"
+harness = false
+
+[dependencies]
+
+[dev-dependencies]
+criterion = { workspace = true }

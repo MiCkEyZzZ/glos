@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::IqBlock;
+use glos_types::IqBlock;
 
 /// Максимальный размер UDP payload (стандартный IPv4).
 pub const UDP_MAX_PAYLOAD: usize = 65_507;
@@ -239,11 +239,13 @@ impl TimingController {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use crate::IqBlockExt;
 
     #[test]
     fn test_udp_packet_encode_decode_roundtrip() {
-        let block = IqBlock::new(1_704_067_200_000_000_000, 100, vec![42u8; 400]);
+        let block = IqBlockExt::new(1_704_067_200_000_000_000, 100, vec![42u8; 400]);
         let encoded = UdpPacket::encode(&block).unwrap();
 
         assert_eq!(encoded.len(), UDP_HEADER_SIZE + 400);

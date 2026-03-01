@@ -2,8 +2,9 @@ use std::fs;
 
 use glos_core::{
     serialization::{read_all_blocks, GlosReader, GlosWriter},
-    Compression, GlosHeader, IqBlock, IqFormat, SdrType, GLOS_VERSION,
+    GlosHeaderExt, IqBlockExt, GLOS_VERSION,
 };
+use glos_types::{Compression, GlosHeader, IqBlock, IqFormat, SdrType};
 use tempfile::NamedTempFile;
 
 // ===========================================================================
@@ -244,7 +245,6 @@ fn test_large_file_streaming() {
     let block_samples: u32 = 512 * 1024 / 4; // ~128K Int16 пар ≈ 512 KB
     let num_blocks = 10;
 
-    // Запись через GlosWriter
     {
         let file = fs::File::create(&temp_path).unwrap();
         let header = GlosHeader::new(SdrType::HackRf, 10_000_000, 2_400_000_000);
@@ -259,7 +259,6 @@ fn test_large_file_streaming() {
         writer.finish().unwrap();
     }
 
-    // Чтение через GlosReader
     {
         let file = fs::File::open(&temp_path).unwrap();
         let mut reader = GlosReader::new(file).unwrap();

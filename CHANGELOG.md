@@ -8,18 +8,33 @@ All notable changes to **GLOS** are documented in this file.
 
 ### Added
 
-- Code quality tooling configured:
-  - `rustfmt`
-  - `clippy`
-  - `taplo`
-  - `cargo-deny`
+- **glos-replayer/tests**
+  - added an integration test to verify concurrent recording and replay.
 
-- Added `Makefile` for workspace management and common developer workflows.
-- CI/CD pipelines and GitHub templates for Issues and Pull Requests.
+- **glos-replayer**
+  - implemented basic functionality:
+    - Parsing `.glos` files with header and checksum validation
+    - Streaming read with buffering
+    - UDP output: sending IQ packets to localhost:5555 (configurable)
+    - Speed control: 0.5x, 1.0x, 2.0x (slowdown/acceleration)
+    - Pause/resume support
+    - Graceful EOF handling
+    - Metrics: packets sent, buffer underruns, timing accuracy
+    - Integration tests for concurrent record-and-replay
+
+- **glos-types**
+  - extracted common types into a separate crate from `glos-core`:
+    - `Compression`, `GlosHeader`, `IqBlock`, `IqFormat`, `SdrType`
+    - Moved error handling logic out of `glos-core`
 
 - **glos**
-  - Настроены линтеры и инструменты качества кода: `taplo`, `rustfmt`, `clippy`, `cargo-deny`;
-  - Добавлен `Makefile` для управления сборкой и внутренними крейтами;
+  - Code quality tooling configured:
+    - `rustfmt`
+    - `clippy`
+    - `taplo`
+    - `cargo-deny`
+  - Added `Makefile` for workspace management and common developer workflows.
+  - CI/CD pipelines and GitHub templates for Issues and Pull Requests.
 
 * **glos-core**
   - Introduced the `.glos` binary container format for IQ data and metadata storage.
@@ -87,3 +102,6 @@ Future stretch goal:
 - **changelog**
   - Test execution workflow clarified:
     tests can now be executed either from the workspace root or per-crate level.
+
+- **glos**
+  - updated `Validate recorded file` commands in README

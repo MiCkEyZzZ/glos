@@ -22,7 +22,7 @@ pub enum RecorderError {
 
     /// Ошибка формата GLOS
     #[error("GLOS error: {0}")]
-    Glos(#[from] glos_core::error::GlosError),
+    Glos(#[from] glos_types::error::GlosError),
 
     /// Ошибка пайплайна (inter-thread)
     #[error("Pipeline error: {0}")]

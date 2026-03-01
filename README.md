@@ -10,10 +10,14 @@
 > Core components and the `.glos` file format are evolving and may change
 > until the first stable release (v0.1).
 >
-> The current focus is building a reliable recording, replay and analysis core.
+> The current focus is building a reliable recording, replay and analysis
+> core.
 
-**GLOS** (GLONASS Signal Recorder & Playback) is a modular engineering toolkit for recording, replaying and analysing GNSS RF and navigation data.
-It is intended for engineers and researchers testing antennas, filters, receivers, and navigation algorithms under controlled and reproducible conditions.
+**GLOS** (GLONASS Signal Recorder & Playback) is a modular engineering
+toolkit for recording, replaying and analysing GNSS RF and navigation data.
+It is intended for engineers and researchers testing antennas, filters,
+receivers, and navigation algorithms under controlled and reproducible
+conditions.
 
 ## What is GLOS?
 
@@ -24,7 +28,8 @@ GLOS is infrastructure for GNSS experimentation focused on:
 - signal analysis and visualization,
 - reproducible laboratory experiments.
 
-The project is designed as a **set of reusable components**, not a monolithic application.
+The project is designed as a **set of reusable components**, not a monolithic
+application.
 
 ## Table of Contents
 
@@ -67,7 +72,9 @@ GLOS follows several engineering principles:
 
 ## Why it matters
 
-GLOS fills an important niche in the GNSS engineering ecosystem by providing an open and reproducible environment for signal capture and replay experiments.
+GLOS fills an important niche in the GNSS engineering ecosystem by
+providing an open and reproducible environment for signal capture
+and replay experiments.
 
 Typical use cases include:
 
@@ -79,9 +86,11 @@ Typical use cases include:
 ## Key features
 
 - Portable and high-performance core written in Rust.
-- Structured, versioned real-time format for IQ + metadata (binary, CRC-protected).
+- Structured, versioned real-time format for IQ + metadata (binary,
+  CRC-protected).
 - Recorder component supporting SDRs and hardware receivers.
-- Replayer capable of UDP/Ethernet replay (future RF replay with dedicated hardware).
+- Replayer capable of UDP/Ethernet replay (future RF replay with dedicated
+  hardware).
 - Analyzer tools: FFT, waterfall, SNR/CN0 extraction, Doppler statistics.
 - Optional GUI visualisation (egui / Tauri backends).
 - Integration points for telemetry and integrity analysis pipelines.
@@ -221,14 +230,16 @@ cargo run -p glos-recorder --release --features hackrf -- \
 ### Validate recorded file
 
 ```bash
-cargo run -p glos-core --example read_glos_file
+cargo run -p glos-core --example read_glos_file -- signal.glos
+cargo run -p glos-core --example read_glos_file -- signal_lz4.glos
 ```
 
 ## .glos file format (short)
 
 GLOS uses a compact binary container:
 
-- 128-byte fixed header (magic, version, sample rate, center frequency, CRC)
+- 128-byte fixed header (magic, version, sample rate, center frequency,
+  CRC)
 - Time-stamped IQ blocks
 - Optional LZ4 compression
 - Metadata describing SDR configuration and session timing
@@ -270,7 +281,8 @@ GLOS remains fully usable as a standalone recording and replay tool.
 
 ## Safety & legal notes
 
-Replaying RF signals (including GNSS) may interfere with real navigation systems and can be illegal in many jurisdictions.
+Replaying RF signals (including GNSS) may interfere with real navigation
+systems and can be illegal in many jurisdictions.
 
 Always:
 
