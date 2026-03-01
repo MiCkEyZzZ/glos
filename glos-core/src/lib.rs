@@ -21,6 +21,7 @@
 
 pub mod error;
 pub mod format;
+pub mod replayer;
 pub mod serialization;
 
 pub use error::*;

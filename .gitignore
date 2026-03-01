@@ -30,7 +30,7 @@ out/
 debug/
 results
 *.proptest-regressions
-/docs/план_развития.md
+/docs/roadmap.md
 /docs/схема_проекта.md
 deps.txt
 *.glos
