@@ -8,7 +8,8 @@ use std::{
 };
 
 use crossbeam_channel::RecvTimeoutError;
-use glos_core::{GlosHeader, GlosWriter, IqBlock};
+use glos_core::{GlosHeaderExt, GlosWriter, IqBlockExt};
+use glos_types::{GlosHeader, IqBlock};
 use log::{info, warn};
 
 use crate::{
@@ -233,7 +234,8 @@ impl RecordingPipeline {
 mod tests {
     use std::path::PathBuf;
 
-    use glos_core::{read_all_blocks, Compression, GlosReader, IqFormat};
+    use glos_core::{read_all_blocks, GlosReader};
+    use glos_types::{Compression, IqFormat};
     use tempfile::NamedTempFile;
 
     use super::*;

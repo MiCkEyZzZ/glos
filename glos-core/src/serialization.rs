@@ -1,9 +1,8 @@
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 
-use crate::{
-    error::{GlosError, GlosResult},
-    format::{Compression, GlosHeader, IqBlock, GLOS_HEADER_SIZE},
-};
+use glos_types::{Compression, GlosError, GlosHeader, GlosResult, IqBlock};
+
+use crate::{format::GLOS_HEADER_SIZE, GlosHeaderExt, IqBlockExt};
 
 /// Потоковый писатель GLOS файлов.
 pub struct GlosWriter<W: Write + Seek> {
@@ -105,14 +104,14 @@ impl<W: Write + Seek> GlosWriter<W> {
 }
 
 impl<R: Read> GlosReader<R> {
-    /// Создаёт читатель, читая и валидируя заголовок из `inner`.
+    /// Создаёт читателя, читая и валидируя заголовок из `inner`.
     pub fn new(inner: R) -> GlosResult<Self> {
         let mut reader = BufReader::new(inner);
         let mut hdr_buf = [0u8; GLOS_HEADER_SIZE];
 
         reader.read_exact(&mut hdr_buf)?;
 
-        let header = GlosHeader::deserialize(&hdr_buf)?;
+        let header = GlosHeaderExt::deserialize(&hdr_buf)?;
 
         Ok(Self {
             reader,
@@ -261,8 +260,9 @@ fn current_unix_secs() -> u64 {
 mod tests {
     use std::io::Cursor;
 
+    use glos_types::{Compression, IqFormat, SdrType};
+
     use super::*;
-    use crate::format::{Compression, IqFormat, SdrType};
 
     fn make_header() -> GlosHeader {
         GlosHeader::new(SdrType::HackRf, 2_000_000, 1_602_000_000)

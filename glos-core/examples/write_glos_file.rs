@@ -9,7 +9,8 @@
 
 use std::fs::File;
 
-use glos_core::{serialization::GlosWriter, GlosHeader, IqBlock, IqFormat, SdrType};
+use glos_core::{GlosHeaderExt, GlosWriter, IqBlockExt};
+use glos_types::{GlosHeader, IqBlock, IqFormat, SdrType};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_path = "glos-core/test_output.glos";

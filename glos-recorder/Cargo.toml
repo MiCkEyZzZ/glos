@@ -12,6 +12,7 @@ publish = false
 
 [dependencies]
 glos-core = { path = "../glos-core" }
+glos-types = { path = "../glos-types" }
 
 clap = { workspace = true }
 crossbeam-channel = { workspace = true }

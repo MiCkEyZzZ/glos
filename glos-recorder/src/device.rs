@@ -15,7 +15,7 @@ use std::{
 };
 
 use crossbeam_channel::{Sender, TrySendError};
-use glos_core::IqFormat;
+use glos_types::IqFormat;
 
 use crate::{metrics::RecorderMetrics, DeviceKind, RecorderConfig, RecorderError, RecorderResult};
 

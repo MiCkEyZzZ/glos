@@ -31,6 +31,5 @@ debug/
 results
 *.proptest-regressions
 /docs/roadmap.md
-/docs/схема_проекта.md
 deps.txt
 *.glos

@@ -5,8 +5,9 @@
 //! последовательность).
 
 use crc32fast::Hasher;
+use glos_types::{Compression, GlosError, GlosHeader, GlosResult, IqBlock, IqFormat, SdrType};
 
-use crate::error::{GlosError, GlosResult};
+use crate::{read_u32_local, read_u64_local, write_u32_local, write_u64_local};
 
 /// Магическое число для идентификации GLOS файлов: b"GLOS"
 pub const GLOS_MAGIC: [u8; 4] = [b'G', b'L', b'O', b'S'];
@@ -23,142 +24,66 @@ pub const GLOS_MIN_BLOCK_SIZE: usize = 32;
 /// Максимальный размер блока IQ данных (1 МБ)
 pub const GLOS_MAX_BLOCK_SIZE: usize = 1024 * 1024;
 
-/// Тип SDR устройства
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum SdrType {
-    /// Hack RF One
-    HackRf = 0,
-    /// ADALM-PlutoSDR
-    PlutoSdr = 1,
-    /// USRP B200 family
-    UsrpB200 = 2,
-    /// Unknown device
-    Unknown = 255,
+pub trait GlosHeaderExt {
+    /// Создание нового заголовка с настройками по умолчанию.
+    fn new(
+        sdr_type: SdrType,
+        sample_rate: u32,
+        center_freq: u64,
+    ) -> Self
+    where
+        Self: Sized;
+    /// Сериализация заголовка в 128 байт
+    fn serialize(&self) -> GlosResult<[u8; GLOS_HEADER_SIZE]>;
+    /// Десериализация заголовка из 128 байт
+    fn deserialize(buf: &[u8; GLOS_HEADER_SIZE]) -> GlosResult<Self>
+    where
+        Self: Sized;
+    fn is_little_endian(&self) -> bool;
 }
 
-/// Формат IQ выборок
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum IqFormat {
-    /// 8-битные целые числа (I8, Q8) — компактно
-    Int8 = 0,
-    /// 16-битные целые числа (I16, Q16) — выше точность
-    Int16 = 1,
-    /// 32-битные числа с плавающей точкой (F32, F32) — полная точность
-    Float32 = 2,
+pub trait IqBlockExt {
+    /// Создаёт новый блок IQ данными.
+    fn new(
+        timestamp_ns: u64,
+        sample_count: u32,
+        data: Vec<u8>,
+    ) -> Self
+    where
+        Self: Sized;
+    /// Создаёт блок с предварительно сжатыми данными.
+    fn new_compressed(
+        timestamp_ns: u64,
+        sample_count: u32,
+        compressed_data: Vec<u8>,
+    ) -> Self
+    where
+        Self: Sized;
+    /// Сжимает данные блока с помощью LZ4.
+    fn compress(&mut self) -> GlosResult<()>;
+    /// Распаковать данные блока (если сжаты)
+    fn decompress(&mut self) -> GlosResult<()>;
+    /// Проверяет соответствие `sample_count * iq_format.sample_size() ==
+    /// data.len()`.
+    fn validate_sample_count(
+        &self,
+        iq_format: IqFormat,
+    ) -> GlosResult<()>;
+    /// Сериализует блок в байты с CRC.
+    fn serialize(&self) -> GlosResult<Vec<u8>>;
+    /// Десериализует блок из ьайтового среза.
+    fn deserialize(
+        buf: &[u8],
+        compression: Compression,
+    ) -> GlosResult<(Self, usize)>
+    where
+        Self: Sized;
+    /// Возвращает несжатые данные (автоматически распаковывает если нужно).
+    fn get_uncompressed_data(&self) -> GlosResult<Vec<u8>>;
 }
 
-/// Тип сжатия IQ данных
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Compression {
-    /// Без сжатия
-    None = 0,
-    /// Сжатие LZ4
-    Lz4 = 1,
-}
-
-/// Заголовок GLOS файла (фиксированный размер 128 байт)
-#[derive(Debug, Clone)]
-pub struct GlosHeader {
-    /// Версия формата ГЛОС
-    pub version: u8,
-    /// Флаги (bit 0: little-endian если установлен)
-    pub flags: u8,
-    /// Тип SDR устройства
-    pub sdr_type: SdrType,
-    /// Формат IQ данных
-    pub iq_format: IqFormat,
-    /// Метод сжатия
-    pub compression: Compression,
-    /// Частота дискретизации в Гц
-    pub sample_rate: u32,
-    /// Несущая частота в Гц
-    pub center_freq: u64,
-    /// Усиление приёмника в дБ (f32)
-    pub gain_db: f32,
-    /// Время начала сессии (Unix timestamp, секунды)
-    pub timestamp_start: u64,
-    /// Время окончания сессии (0 если запись продолжается)
-    pub timestamp_end: u64,
-    /// Общее количество IQ выборок в файле
-    pub total_samples: u64,
-}
-
-/// Блок IQ данных (переменный размер)
-#[derive(Debug, Clone)]
-pub struct IqBlock {
-    /// Метка времени блока в наносекундах (для точности)
-    pub timestamp_ns: u64,
-    /// Количество IQ выборок в блоке
-    pub sample_count: u32,
-    /// Данные IQ выборок (формат зависит от заголовка)
-    pub data: Vec<u8>,
-    /// Флаг: данные в `data` находятся в сжатом виде
-    pub is_compressed: bool,
-}
-
-impl SdrType {
-    pub fn from_u8(v: u8) -> Self {
-        match v {
-            0 => SdrType::HackRf,
-            1 => SdrType::PlutoSdr,
-            2 => SdrType::UsrpB200,
-            _ => SdrType::Unknown,
-        }
-    }
-
-    pub fn as_u8(&self) -> u8 {
-        *self as u8
-    }
-}
-
-impl IqFormat {
-    pub fn from_u8(v: u8) -> GlosResult<Self> {
-        match v {
-            0 => Ok(IqFormat::Int8),
-            1 => Ok(IqFormat::Int16),
-            2 => Ok(IqFormat::Float32),
-            _ => Err(GlosError::FormatViolation(format!(
-                "Unknown IQ format: {v}"
-            ))),
-        }
-    }
-
-    pub fn as_u8(&self) -> u8 {
-        *self as u8
-    }
-
-    /// Размер одной IQ пары в байтах
-    pub fn sample_size(&self) -> usize {
-        match self {
-            IqFormat::Int8 => 2,    // 1 байт I + 1 байт Q
-            IqFormat::Int16 => 4,   // 2 байта I + 2 байта Q
-            IqFormat::Float32 => 8, // 4 байта I + 4 байта Q
-        }
-    }
-}
-
-impl Compression {
-    pub fn from_u8(v: u8) -> GlosResult<Self> {
-        match v {
-            0 => Ok(Compression::None),
-            1 => Ok(Compression::Lz4),
-            _ => Err(GlosError::FormatViolation(format!(
-                "Unknown compression: {v}"
-            ))),
-        }
-    }
-
-    pub fn as_u8(&self) -> u8 {
-        *self as u8
-    }
-}
-
-impl GlosHeader {
-    /// Creating a new header with default settings.
-    pub fn new(
+impl GlosHeaderExt for GlosHeader {
+    fn new(
         sdr_type: SdrType,
         sample_rate: u32,
         center_freq: u64,
@@ -183,8 +108,7 @@ impl GlosHeader {
         }
     }
 
-    /// Сериализация заголовка в 128 байт
-    pub fn serialize(&self) -> GlosResult<[u8; GLOS_HEADER_SIZE]> {
+    fn serialize(&self) -> GlosResult<[u8; GLOS_HEADER_SIZE]> {
         let mut buf = [0u8; GLOS_HEADER_SIZE];
         let mut off = 0;
 
@@ -228,8 +152,7 @@ impl GlosHeader {
         Ok(buf)
     }
 
-    /// Десериализация заголовка из 128 байт
-    pub fn deserialize(buf: &[u8; GLOS_HEADER_SIZE]) -> GlosResult<Self> {
+    fn deserialize(buf: &[u8; GLOS_HEADER_SIZE]) -> GlosResult<Self> {
         let mut off = 0;
 
         if buf[off..off + 4] != GLOS_MAGIC {
@@ -296,14 +219,13 @@ impl GlosHeader {
         })
     }
 
-    pub fn is_little_endian(&self) -> bool {
+    fn is_little_endian(&self) -> bool {
         (self.flags & 0x01) != 0
     }
 }
 
-impl IqBlock {
-    /// Создаёт новый блок IQ данными.
-    pub fn new(
+impl IqBlockExt for IqBlock {
+    fn new(
         timestamp_ns: u64,
         sample_count: u32,
         data: Vec<u8>,
@@ -316,8 +238,7 @@ impl IqBlock {
         }
     }
 
-    /// Создаёт блок с предварительно сжатыми данными.
-    pub fn new_compressed(
+    fn new_compressed(
         timestamp_ns: u64,
         sample_count: u32,
         compressed_data: Vec<u8>,
@@ -330,8 +251,7 @@ impl IqBlock {
         }
     }
 
-    /// Сжимает данные блока с помощью LZ4.
-    pub fn compress(&mut self) -> GlosResult<()> {
+    fn compress(&mut self) -> GlosResult<()> {
         if self.is_compressed {
             return Ok(());
         }
@@ -342,8 +262,7 @@ impl IqBlock {
         Ok(())
     }
 
-    /// Распаковать данные блока (если сжаты)
-    pub fn decompress(&mut self) -> GlosResult<()> {
+    fn decompress(&mut self) -> GlosResult<()> {
         if !self.is_compressed {
             return Ok(()); // Не сжато
         }
@@ -357,9 +276,7 @@ impl IqBlock {
         Ok(())
     }
 
-    /// Проверяет соответствие `sample_count * iq_format.sample_size() ==
-    /// data.len()`.
-    pub fn validate_sample_count(
+    fn validate_sample_count(
         &self,
         iq_format: IqFormat,
     ) -> GlosResult<()> {
@@ -382,8 +299,7 @@ impl IqBlock {
         Ok(())
     }
 
-    /// Сериализует блок в байты с CRC.
-    pub fn serialize(&self) -> GlosResult<Vec<u8>> {
+    fn serialize(&self) -> GlosResult<Vec<u8>> {
         let block_size = 4 + 4 + 8 + self.data.len() + 4; // size+count+ts+data+crc
 
         if block_size > GLOS_MAX_BLOCK_SIZE {
@@ -405,8 +321,7 @@ impl IqBlock {
         Ok(buf)
     }
 
-    /// Десериализует блок из ьайтового среза.
-    pub fn deserialize(
+    fn deserialize(
         buf: &[u8],
         compression: Compression,
     ) -> GlosResult<(Self, usize)> {
@@ -466,8 +381,7 @@ impl IqBlock {
         ))
     }
 
-    /// Возвращает несжатые данные (автоматически распаковывает если нужно).
-    pub fn get_uncompressed_data(&self) -> GlosResult<Vec<u8>> {
+    fn get_uncompressed_data(&self) -> GlosResult<Vec<u8>> {
         if self.is_compressed {
             lz4_flex::decompress_size_prepended(&self.data)
                 .map_err(|e| GlosError::Corrupted(format!("LZ4 decompression failed: {e}")))
@@ -484,75 +398,10 @@ pub fn crc32_checksum(data: &[u8]) -> u32 {
     hasher.finalize()
 }
 
-// вместо macro_rules! read_u32 / read_u64
-fn read_u32_local(
-    buf: &[u8; GLOS_HEADER_SIZE],
-    off: &mut usize,
-    is_le: bool,
-) -> u32 {
-    let b = [buf[*off], buf[*off + 1], buf[*off + 2], buf[*off + 3]];
-    *off += 4;
-    if is_le {
-        u32::from_le_bytes(b)
-    } else {
-        u32::from_be_bytes(b)
-    }
-}
-
-fn read_u64_local(
-    buf: &[u8; GLOS_HEADER_SIZE],
-    off: &mut usize,
-    is_le: bool,
-) -> u64 {
-    let b = [
-        buf[*off],
-        buf[*off + 1],
-        buf[*off + 2],
-        buf[*off + 3],
-        buf[*off + 4],
-        buf[*off + 5],
-        buf[*off + 6],
-        buf[*off + 7],
-    ];
-    *off += 8;
-    if is_le {
-        u64::from_le_bytes(b)
-    } else {
-        u64::from_be_bytes(b)
-    }
-}
-
-// вместо macro_rules! write_u32 / write_u64
-fn write_u32_local(
-    buf: &mut [u8; GLOS_HEADER_SIZE],
-    off: &mut usize,
-    is_le: bool,
-    val: u32,
-) {
-    if is_le {
-        buf[*off..*off + 4].copy_from_slice(&val.to_le_bytes());
-    } else {
-        buf[*off..*off + 4].copy_from_slice(&val.to_be_bytes());
-    }
-    *off += 4;
-}
-
-fn write_u64_local(
-    buf: &mut [u8; GLOS_HEADER_SIZE],
-    off: &mut usize,
-    is_le: bool,
-    val: u64,
-) {
-    if is_le {
-        buf[*off..*off + 8].copy_from_slice(&val.to_le_bytes());
-    } else {
-        buf[*off..*off + 8].copy_from_slice(&val.to_be_bytes());
-    }
-    *off += 8;
-}
-
 #[cfg(test)]
 mod tests {
+    use glos_types::{GlosHeader, IqBlock};
+
     use super::*;
 
     #[test]
