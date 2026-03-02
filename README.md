@@ -120,13 +120,14 @@ Core components are split into reusable crates:
 ## Repository layout
 
 ```
-glos/
-├── glos-analyzer/
-├── glos-cli/
-├── glos-core/
-├── glos-recorder/
-├── glos-replayer/
-└── glos-ui/
+glos
+├── glos-analyzer
+├── glos-cli
+├── glos-core
+├── glos-recorder
+├── glos-replayer
+├── glos-types
+└── glos-ui
 ```
 
 ## Quick start
@@ -136,13 +137,13 @@ glos/
 
 Build workspace:
 
-```bash
+```zsh
 cargo build --workspace --release
 ```
 
 Run tests:
 
-```bash
+```zsh
 cargo test --workspace
 ```
 
@@ -150,31 +151,31 @@ cargo test --workspace
 
 ### Run all workspace tests
 
-```bash
+```zsh
 cargo test --workspace
 ```
 
 ### Test only `glos-core`
 
-```bash
+```zsh
 cargo test -p glos-core
 ```
 
 ### Test only `glos-recorder`
 
-```bash
+```zsh
 cargo test -p glos-recorder
 ```
 
 ### Tests with logs enabled
 
-```bash
+```zsh
 RUST_LOG=info cargo test -p glos-recorder -- --nocapture
 ```
 
 ### glos-core integration tests
 
-```bash
+```zsh
 cargo test -p glos-core --test integration_tests
 ```
 
@@ -182,7 +183,7 @@ cargo test -p glos-core --test integration_tests
 
 ### Simulator mode (no hardware)
 
-```bash
+```zsh
 cargo run -p glos-recorder --release -- \
   --device sim \
   --freq 1602MHz \
@@ -194,7 +195,7 @@ cargo run -p glos-recorder --release -- \
 
 ### Simulator with LZ4 compression
 
-```bash
+```zsh
 cargo run -p glos-recorder --release -- \
   --device sim \
   --freq 433MHz \
@@ -204,6 +205,10 @@ cargo run -p glos-recorder --release -- \
   --duration 10
 ```
 
+## Replayer Usage
+
+See [link](./docs/QUICK_START.md)
+
 ### HackRF One recording
 
 Requirements:
@@ -211,13 +216,13 @@ Requirements:
 - `--features hackrf`
 - system package `libhackrf-dev`
 
-```bash
+```zsh
 sudo apt install libhackrf-dev
 ```
 
 Run:
 
-```bash
+```zsh
 cargo run -p glos-recorder --release --features hackrf -- \
   --device hackrf \
   --freq 1602MHz \
@@ -229,7 +234,7 @@ cargo run -p glos-recorder --release --features hackrf -- \
 
 ### Validate recorded file
 
-```bash
+```zsh
 cargo run -p glos-core --example read_glos_file -- signal.glos
 cargo run -p glos-core --example read_glos_file -- signal_lz4.glos
 ```
