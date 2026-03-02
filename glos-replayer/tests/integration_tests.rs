@@ -1,7 +1,7 @@
 use std::net::UdpSocket;
 
-use glos_core::{GlosHeaderExt, IqBlockExt, UdpPacket};
-use glos_replayer::{ReplayConfiq, ReplaySession};
+use glos_core::{GlosHeaderExt, IqBlockExt};
+use glos_replayer::{ReplayConfiq, ReplaySession, UdpPacket};
 use glos_types::{GlosHeader, IqBlock, IqFormat, SdrType};
 use tempfile::NamedTempFile;
 

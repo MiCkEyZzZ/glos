@@ -27,6 +27,8 @@ pub const UDP_HEADER_SIZE: usize = UDP_TIMESTAMP_SIZE + UDP_SAMPLE_COUNT_SIZE;
 /// ```
 pub struct UdpPacket;
 
+pub struct UdpPacketizer;
+
 /// Lock-free метрики сессии воспроизведения.
 #[derive(Debug, Default)]
 pub struct ReplayMetrics {
@@ -96,6 +98,35 @@ impl UdpPacket {
         let iq_data = &buf[UDP_HEADER_SIZE..];
 
         Ok((timestamp_ns, sample_count, iq_data))
+    }
+}
+
+impl UdpPacketizer {
+    pub fn packetize(block: &IqBlock) -> Result<Vec<Vec<u8>>, String> {
+        let max_data = UDP_MAX_PAYLOAD - UDP_HEADER_SIZE;
+
+        if block.sample_count > u16::MAX as u32 {
+            return Err("sample_count exceeds u16".into());
+        }
+
+        let mut packets = Vec::new();
+        let mut offset = 0;
+
+        while offset < block.data.len() {
+            let end = (offset + max_data).min(block.data.len());
+            let chunk = &block.data[offset..end];
+            let mut buf = Vec::with_capacity(UDP_HEADER_SIZE + chunk.len());
+
+            buf.extend_from_slice(&block.timestamp_ns.to_be_bytes());
+            buf.extend_from_slice(&(block.sample_count as u16).to_be_bytes());
+            buf.extend_from_slice(chunk);
+
+            packets.push(buf);
+
+            offset = end;
+        }
+
+        Ok(packets)
     }
 }
 
@@ -240,8 +271,9 @@ impl TimingController {
 #[cfg(test)]
 mod tests {
 
+    use glos_core::IqBlockExt;
+
     use super::*;
-    use crate::IqBlockExt;
 
     #[test]
     fn test_udp_packet_encode_decode_roundtrip() {
