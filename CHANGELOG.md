@@ -2,11 +2,12 @@
 
 All notable changes to **GLOS** are documented in this file.
 
----
-
 ## [Unreleased] — 00-00-0000
 
 ### Added
+
+- **tools**
+  - added `udp_server.py` is a minimal UDP listener used to inspect packets produced by **glos-replayer**.
 
 - **glos-replayer/tests**
   - added an integration test to verify concurrent recording and replay.
