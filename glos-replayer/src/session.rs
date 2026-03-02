@@ -8,10 +8,12 @@ use std::{
     time::Instant,
 };
 
-use glos_core::{GlosReader, ReadStats, ReplayMetrics, TimingController, UdpPacket};
+use glos_core::{GlosReader, ReadStats};
 use glos_types::GlosHeader;
 
-use crate::{ReplayConfiq, ReplayError, ReplayResult};
+use crate::{
+    ReplayConfiq, ReplayError, ReplayMetrics, ReplayResult, TimingController, UdpPacketizer,
+};
 
 /// Сессия воспроизведения (single-threaded).
 pub struct ReplaySession {
@@ -56,11 +58,9 @@ impl ReplaySession {
         let session_start = Instant::now();
         let stats_interval = std::time::Duration::from_secs(cfg.stats_interval_secs);
 
-        // Создаём UDP-сокет
         let socket = UdpSocket::bind(&cfg.bind_addr)?;
         socket.connect(&cfg.target_addr)?;
 
-        // Читаем заголовок один раз и выводим инфо
         let header = {
             let f = File::open(&cfg.input_path)?;
             let r = GlosReader::new(f)?;
@@ -81,8 +81,7 @@ impl ReplaySession {
             loop_count += 1;
 
             if loop_count > 1 {
-                eprintln!("[replayer] Loop #[loop_count]");
-
+                eprintln!("[replayer] Loop #{loop_count}");
                 timing.reset();
             }
 
@@ -102,42 +101,40 @@ impl ReplaySession {
                     }
                 };
 
-                // Speed-controlled timing
                 timing.wait_for(block.timestamp_ns, metrics);
 
-                // Сереализуем в UDP-пакет
-                let payload = match UdpPacket::encode(&block) {
+                let packets = match UdpPacketizer::packetize(&block) {
                     Ok(p) => p,
                     Err(e) => {
-                        eprintln!("[replayer] Encode error (block too large): {e}");
+                        eprintln!("[replayer] Packetize error: {e}");
                         metrics.send_errors.fetch_add(1, Ordering::Relaxed);
                         continue;
                     }
                 };
 
-                // Отправляем
-                match socket.send(&payload) {
-                    Ok(n) => {
-                        metrics.packets_sent.fetch_add(1, Ordering::Relaxed);
-                        metrics
-                            .samples_sent
-                            .fetch_add(block.sample_count as u64, Ordering::Relaxed);
-                        metrics.bytes_sent.fetch_add(n as u64, Ordering::Relaxed);
-                    }
-                    Err(e) => {
-                        eprintln!("[replayer] UDP send error: {e}");
-                        metrics.send_errors.fetch_add(1, Ordering::Relaxed);
+                for payload in packets {
+                    match socket.send(&payload) {
+                        Ok(n) => {
+                            metrics.packets_sent.fetch_add(1, Ordering::Relaxed);
+                            metrics.bytes_sent.fetch_add(n as u64, Ordering::Relaxed);
+                        }
+                        Err(e) => {
+                            eprintln!("[replayer] UDP send error: {e}");
+                            metrics.send_errors.fetch_add(1, Ordering::Relaxed);
+                        }
                     }
                 }
 
-                // Переодически выводим прогресс
+                metrics
+                    .samples_sent
+                    .fetch_add(block.sample_count as u64, Ordering::Relaxed);
+
                 if last_stats.elapsed() >= stats_interval {
                     Self::log_progress(metrics, &session_start, reader.stats());
                     last_stats = Instant::now();
                 }
             }
 
-            // Graceful EOF
             eprintln!(
                 "[replayer] EOF: {} blocks, {} samples",
                 reader.stats().blocks_ok,
@@ -204,6 +201,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use super::*;
+    use crate::UdpPacket;
 
     /// Создаёт временный .glos файд с `n_blocks` блоками по `samples` выборок.
     fn make_glos_file(

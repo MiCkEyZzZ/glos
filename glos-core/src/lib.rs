@@ -22,12 +22,10 @@
 
 pub mod binary;
 pub mod format;
-pub mod replayer;
 pub mod serialization;
 
 pub use binary::*;
 pub use format::*;
-pub use replayer::*;
 pub use serialization::*;
 
 /// Версия библиотеки.
