@@ -3,8 +3,8 @@
 ```
 glos-analyzer
 ├── docs
-│   ├── ROADMAP.md
-│   └── схема_проекта.md
+│   ├── project_structure.md
+│   └── ROADMAP.md
 ├── examples
 ├── src
 │   ├── lib.rs

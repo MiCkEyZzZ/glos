@@ -125,5 +125,35 @@ mod tests {
         let w = WindowFunction::Hann.coefficients(1024);
 
         assert!(w[0].abs() < 1e-3, "Hann[0] must be close to 0");
+        assert!(w[1023].abs() < 1e-3, "Hann[N-1] must be close to 0");
+        assert!(
+            (w[512] - 1.0).abs() < 0.01,
+            "Hannp[N/2] should be close to 1"
+        );
+    }
+
+    #[test]
+    fn test_window_coefficients_blackman() {
+        let w = WindowFunction::Blackman.coefficients(512);
+
+        assert_eq!(w.len(), 512);
+        assert!(w[0].abs() < 0.01);
+    }
+
+    #[test]
+    fn test_window_fromstr() {
+        assert_eq!(
+            "hann".parse::<WindowFunction>().unwrap(),
+            WindowFunction::Hann
+        );
+        assert_eq!(
+            "blackman".parse::<WindowFunction>().unwrap(),
+            WindowFunction::Blackman
+        );
+        assert_eq!(
+            "rect".parse::<WindowFunction>().unwrap(),
+            WindowFunction::Rectangular
+        );
+        assert!("unknown".parse::<WindowFunction>().is_err());
     }
 }

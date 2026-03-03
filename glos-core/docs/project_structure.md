@@ -3,8 +3,8 @@
 ```
 glos-core
 ├── docs
-│   ├── ROADMAP.md
-│   └── схема_проекта.md
+│   ├── project_structure.md
+│   └── ROADMAP.md
 ├── examples
 │   ├── write_glos_file.rs
 │   └── read_glos_file.rs

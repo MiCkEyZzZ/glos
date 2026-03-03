@@ -3,8 +3,8 @@
 ```
 glos-types
 ├── docs
-│   ├── ROADMAP.md
-│   └── схема_проекта.md
+│   ├── project_structure.md
+│   └── ROADMAP.md
 ├── src
 │   ├── compression.rs
 │   ├── error.rs

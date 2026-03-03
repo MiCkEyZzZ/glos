@@ -3,8 +3,8 @@
 ```
 glos-ui
 ├── docs
-│   ├── ROADMAP.md
-│   └── схема_проекта.md
+│   ├── project_structure.md
+│   └── ROADMAP.md
 ├── src
 │   ├── data
 │   │   ├── export.rs
