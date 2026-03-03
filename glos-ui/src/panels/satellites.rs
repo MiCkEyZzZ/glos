@@ -4,7 +4,7 @@ use egui::Color32;
 use egui_plot::{Plot, Points};
 use parking_lot::RwLock;
 
-use crate::{AppState, data::Satellite};
+use crate::{data::Satellite, AppState};
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortColumn {

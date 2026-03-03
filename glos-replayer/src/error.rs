@@ -1,35 +1,25 @@
+use glos_types::GlosError;
+use thiserror::Error;
+
 pub type ReplayResult<T> = Result<T, ReplayError>;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ReplayError {
-    Io(std::io::Error),
-    Glos(glos_types::error::GlosError),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Glos format error: {0}")]
+    Glos(#[from] GlosError),
+
+    #[error("Configuration error: {0}")]
     Config(String),
-}
 
-impl std::fmt::Display for ReplayError {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> std::fmt::Result {
-        match self {
-            ReplayError::Io(e) => write!(f, "I/O error: {e}"),
-            ReplayError::Glos(e) => write!(f, "GLOS error: {e}"),
-            ReplayError::Config(s) => write!(f, "Config error: {s}"),
-        }
-    }
-}
+    #[error("Network error: {0}")]
+    Network(String),
 
-impl std::error::Error for ReplayError {}
+    #[error("Timing error: {0}")]
+    Timing(String),
 
-impl From<std::io::Error> for ReplayError {
-    fn from(e: std::io::Error) -> Self {
-        ReplayError::Io(e)
-    }
-}
-
-impl From<glos_types::error::GlosError> for ReplayError {
-    fn from(e: glos_types::error::GlosError) -> Self {
-        ReplayError::Glos(e)
-    }
+    #[error("Internal error: {0}")]
+    Internal(String),
 }

@@ -6,6 +6,25 @@ All notable changes to **GLOS** are documented in this file.
 
 ### Added
 
+- **glos-analyzer**
+  - сделана базовая имплементация `spectrum.rs`
+
+- **glos-core**
+  - добавлена локальная обработка ошибок `error.rs`
+
+- **glos-recorder**
+  - добавлена локальная обработка ошибок `error.rs`
+
+- **glos-replayer**
+  - добавлена локальная обработка ошибок `error.rs`
+
+- **glos**
+  - Add glos-core::CoreError (wraps glos_types::GlosError and std::io::Error)
+  - Replace glos-replayer ReplayError with thiserror-based enum and #[from] conversions
+  - Keep glos-recorder error shape, recommend minor later improvements
+  - Update code to use ? propagation with the new types
+  - Add unit tests for error conversions
+
 - **tools**
   - added `udp_server.py` is a minimal UDP listener used to inspect packets produced by **glos-replayer**.
 
@@ -106,3 +125,42 @@ Future stretch goal:
 
 - **glos**
   - updated `Validate recorded file` commands in README
+
+- **glos**
+  - обновлены условия `deny.toml`
+  - обновлены лицензии: `LICENSE.APACHE`, `LICENSE.MIT`
+
+- **.github**
+  - исправил и обновил данные в ISSUE_TEMPLATE
+  - обновил `pull_request_template.md`
+
+- **benches**
+  - обновил метаданные в `Cargo.toml`
+
+- **glos-analyzer**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`
+
+- **glos-cli**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`
+
+- **glos-core**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`
+
+- **glos-recorder**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`
+
+- **glos-replayer**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`
+
+- **glos-types**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`
+
+- **glos-ui**
+  - обновил метаданные в `Cargo.toml`
+  - обновил `схема_проекта.md`

@@ -1,14 +1,14 @@
-# macOS системные файлы
+# macOS system files
 .DS_Store
 
-# Артефакты сборки Rust
+# Rust build artifacts
 target/
 dist
 tmp
 **/cargo-target
 Cargo.lock
 
-# Директории и файлы редакторов
+# Editor and IDE directories
 .idea/
 .vscode/
 .zed/
@@ -17,16 +17,18 @@ Cargo.lock
 out/
 .devcontainer/
 
-# Файлы окружения и секреты
+# Environment files and secrets
 .env
 
-# Рабочее пространство VSCode
+# VS Code workspace configuration
 *.code-workspace
 
-# Сборка WebAssembly
+# WebAssembly build outputs
 *.wasm
 
-# Разное
+*.dll
+
+# Miscellaneous
 debug/
 results
 *.proptest-regressions
