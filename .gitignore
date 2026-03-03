@@ -32,6 +32,6 @@ out/
 debug/
 results
 *.proptest-regressions
-/docs/roadmap.md
+ROADMAP.md
 deps.txt
 *.glos

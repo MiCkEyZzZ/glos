@@ -1,19 +1,19 @@
 ## Структура библиотеки
 
 ```
-glos-replayer
+glos-recorder
 ├── docs
-│   ├── ROADMAP.md
-│   └── схема_проекта.md
+│   ├── project_structure.md
+│   └── ROADMAP.md
 ├── src
 │   ├── config.rs
+│   ├── device.rs
 │   ├── error.rs
 │   ├── lib.rs
 │   ├── main.rs
-│   ├── replayer.rs
-│   └── session.rs
+│   ├── metrics.rs
+│   └── pipeline.rs
 ├── tests
-│   └── integration_tests.rs
 ├── .gitignore
 ├── Cargo.toml
 ├── LICENSE

@@ -9,21 +9,39 @@ glos
 │   └── nextest.toml
 ├── .github
 │   ├── ISSUE_TEMPLATE
+│   │   ├── dependency-check.yml
+│   │   ├── config.yml
+│   │   ├── crash_report.yml
+│   │   ├── enhancement.yml
+│   │   ├── feature.yml
+│   │   ├── other_stuff.yml
+│   │   └── question.yml
 │   ├── workflows
+│   │   ├── dependency-check.yml
+│   │   ├── dev-build.yml
+│   │   ├── property-tests.yml
+│   │   ├── release.yml
+│   │   └── semantic-pull-request.yml
 │   ├── cargo-blacklist.txt
 │   ├── CODEOWNERS
 │   └── pull_request_template.md
+├── benches
+│   ├── benches
+│   │   └── recorder_benchmark
+│   │       └── recorder_bench.rs
+│   ├── Cargo.toml
+│   └── README.md
 ├── docs
-│   ├── cпецификация_формата_файла_глос_v_1_0.md
-│   ├── roadmap.md
-│   ├── АРХИТЕКТУРА.md
-│   ├── БЫТСРЫЙ_СТАРТ.md
-│   ├── ТЕСТИРОВАНИЕ.md
-│   └── схема_проекта.md
+│   ├── ARCHITECTURE.md
+│   ├── glos_file_format_spec_v1_0.md
+│   ├── project_structure.md
+│   ├── QUICK_START.md
+│   ├── ROADMAP.md
+│   └── TESTING.md
 ├── glos-analyzer
 │   ├── docs
 │   │   ├── roadmap.md
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── src
 │   │   └── lib.rs
 │   ├── .gitignore
@@ -34,7 +52,7 @@ glos
 ├── glos-cli
 │   ├── docs
 │   │   ├── roadmap.md
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── src
 │   │   ├── lib.rs
 │   │   └── main.rs
@@ -46,7 +64,7 @@ glos
 ├── glos-core
 │   ├── docs
 │   │   ├── roadmap.md
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── examples
 │   │   ├── read_glos_file.rs
 │   │   └── write_glos_file.rs
@@ -68,7 +86,7 @@ glos
 ├── glos-recorder
 │   ├── docs
 │   │   ├── roadmap.md
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── src
 │   │   ├── config.rs
 │   │   ├── device.rs
@@ -84,7 +102,7 @@ glos
 ├── glos-replayer
 │   ├── docs
 │   │   ├── roadmap.md
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── src
 │   │   ├── config.rs
 │   │   ├── error.rs
@@ -101,7 +119,7 @@ glos
 │   └── README.md
 ├── glos-types
 │   ├── docs
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── src
 │   │   ├── compression.rs
 │   │   ├── error.rs
@@ -118,7 +136,7 @@ glos
 ├── glos-ui
 │   ├── docs
 │   │   ├── roadmap.md
-│   │   └── схема_проекта.md
+│   │   └── project_structure.md
 │   ├── src
 │   │   ├── data
 │   │   │   ├── export.rs
