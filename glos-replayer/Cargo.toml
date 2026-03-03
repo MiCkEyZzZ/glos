@@ -1,8 +1,13 @@
 [package]
 name = "glos-replayer"
-version = "0.1.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
 description = "GLOS IQ signal replayer - stream .glos recording over UDP"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
+publish = false
 
 [dependencies]
 glos-core = { path = "../glos-core" }
@@ -14,6 +19,7 @@ env_logger = { workspace = true }
 log = { workspace = true }
 signal-hook = { workspace = true }
 tempfile = { workspace = true }
+thiserror = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

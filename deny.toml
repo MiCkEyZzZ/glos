@@ -1,33 +1,53 @@
+[bans]
+multiple-versions = "warn"
+
+deny = [
+  { name = "openssl", version = "<0.10.60" },
+  { name = "openssl", version = "0.10.63" },
+]
+
+skip = []
+skip-tree = []
+
+wildcards = "deny"
+allow-wildcard-paths = true
+
+
 [advisories]
-# Включить проверку на уязвимость
-enabled = true
-# Сообщаем об опасных зависимостях, даже если они не в Cargo.lock
-yanked = "deny"       # Запрещаем зависимости, которые были отозваны
-unmaintained = "deny" # Запрещаем не поддерживаемые библиотеки
-unsound = "deny"      # Запрещаем небезопасные зависимости
+yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+ignore = [
+    { id = "RUSTSEC-2024-0436", reason = "transitive dependency via rav1e/ image, no direct impact" }
+]
+
 
 [licenses]
-# Разрешённые лицензии для зависимостей
-allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC"]
-# Явно запрещённые лицензии
-deny = ["GPL-3.0", "AGPL-3.0", "LGPL-3.0"]
-# Разрешаем временно использовать зависимости без указанных лицензий (не рекомендовано для продакшена)
-unlicensed = "warn"
-# Лицензии, которые требуют ручной оценки
-copyleft = "deny"
-
-[bans]
-# Блокировка конкретных версий зависимостей из-за уязвимостей
-deny = [
-  { name = "openssl", version = "<0.10.60", reason = "RUSTSEC-2025-0004: use-after-free in select_next_proto" },
-  { name = "openssl", version = "0.10.63", reason = "RUSTSEC-2024-0357: MemBio unsoundness" },
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+    "NCSA",
+    "CC0-1.0",
 ]
 
-# Запрещаем старые версии time из-за уязвимости
-skip-tree = [
-  { name = "time", version = "<0.3.20", reason = "RUSTSEC-2020-0071: time::now is unsound" },
-]
+private = { ignore = true }
 
-[duplicate]
-# Предупреждения о нескольких версиях одного и того же crate
-deny = "warn"
+
+[sources]
+allow-git = []
+unknown-git = "deny"
+unknown-registry = "deny"
+required-git-spec = "rev"
+
+[sources.allow-org]
+github = []

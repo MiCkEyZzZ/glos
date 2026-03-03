@@ -3,12 +3,12 @@ name = "glos-core"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "Спецификация формата файла GLOS и эталонная реализация"
-repository = "https://github.com/MiCkEyZzZ/glos/glos_core"
-readme = "README.md"
-homepage = "https://github.com/MiCkEyZzZ/glos/glos_core"
-publish = false
+description = "Core implementation logic of glos, the cross-platfowm, safe API"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
 license.workspace = true
+publish = false
 
 [lib]
 name = "glos_core"
@@ -25,3 +25,4 @@ rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+thiserror = { workspace = true }

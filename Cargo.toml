@@ -1,9 +1,19 @@
 [workspace.package]
-version = "0.2.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/MiCkEyZzZ/glos"
+version = "0.1.0"
 authors = ["Mikhail <mikhail.f.zhuravlev@gmail.com>"]
+edition = "2021"
+homepage = "https://github.com/MiCkEyZzZ/glos"
+repository = "https://github.com/MiCkEyZzZ/glos"
+keywords = [
+    "gnss",
+    "glonass",
+    "sdr",
+    "signal-processing",
+    "iq-data",
+    "radio",
+    "dsp",
+]
+license = "MIT OR Apache-2.0"
 
 [workspace]
 resolver = "2"
@@ -25,10 +35,12 @@ criterion = { version = "0.6.0", features = ["async"] }
 crossbeam-channel = "0.5"
 env_logger = "0.11"
 hackrfone = "0.4.0"
+image = "0.25.9"
 libc = "0.2"
 log = "0.4"
 lz4 = "1.28.1"
 lz4_flex = { version = "0.12", default-features = false }
+rustfft = "6.4.1"
 signal-hook = "0.4.3"
 
 # Random для примеров (опционально)

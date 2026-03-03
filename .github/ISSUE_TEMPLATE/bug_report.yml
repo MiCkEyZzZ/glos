@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a bug in the Glos database
+description: Report a bug in the Glos
 title: "[BUG]"
 labels: [bug]
 
@@ -14,7 +14,7 @@ body:
     attributes:
       label: What went wrong?
       description: Describe the bug in detail.
-      placeholder: The database panicked when I called `SET foo bar`…
+      placeholder: The glos panicked when I called `Something`…
 
   - type: input
     id: steps
@@ -23,7 +23,7 @@ body:
       description: List the minimal steps to reproduce the issue.
       placeholder: |
         1. Start glos
-        2. Run `SET foo bar`
+        2. Run `...`
         3. Observe panic
 
   - type: textarea
