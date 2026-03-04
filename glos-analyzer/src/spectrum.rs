@@ -154,7 +154,7 @@ mod tests {
     use glos_types::IqFormat;
     use rustfft::num_complex::Complex32;
 
-    use crate::{decode_id, WindowFunction};
+    use crate::{decode_id, PowerSpectrum, WindowFunction};
 
     #[test]
     fn test_window_coefficients_hann_endpoint() {
@@ -324,5 +324,51 @@ mod tests {
         assert_eq!(decoded.len(), 2);
         assert!((decoded[0].re - 1.0).abs() < 1e-6);
         assert!(decoded[1].re < -1.0);
+    }
+
+    #[test]
+    fn test_decode_iq_ignores_trailing_bytes() {
+        let data = vec![127i8 as u8, 0u8, 1u8];
+
+        let decoded = decode_id(&data, IqFormat::Int8);
+
+        // Должна жекодироваться только одна пара
+        assert_eq!(decoded.len(), 1);
+    }
+
+    #[test]
+    fn test_window_power_norm_positive() {
+        let n = 1024;
+        let rect = WindowFunction::Rectangular.power_norm(n);
+        let hann = WindowFunction::Hann.power_norm(n);
+        let black = WindowFunction::Blackman.power_norm(n);
+
+        assert!(rect > hann);
+        assert!(hann > black);
+    }
+
+    #[test]
+    fn test_bin_frequencies_center() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![0.0; 4],
+            timestamp_ns: 0,
+        };
+        let fregs = spectrum.bin_frequencies(4, 1000);
+
+        // Для n = 4: bin: -2, -1, 0, 1
+        // width = 4 / 4 = 1 Гц
+
+        assert_eq!(fregs.len(), 4);
+        assert_eq!(fregs[2], 1000.0); // центральный бин
+    }
+
+    #[test]
+    fn test_window_symmetry() {
+        let n = 256;
+        let w = WindowFunction::Hann.coefficients(n);
+
+        for i in 0..n {
+            assert!((w[i] - w[n - 1 - i]).abs() < 1e-6);
+        }
     }
 }
