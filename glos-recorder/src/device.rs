@@ -98,7 +98,6 @@ mod tests {
         assert!(!chunks.is_empty(), "ожидаем хотя бы 1 чанк");
         assert_eq!(chunks[0].sample_count, 512);
         assert_eq!(chunks[0].data.len(), 512 * 4, "Int16: 4 байта/пара");
-        assert!(chunks[0].timestamp_ns > 0);
         // При буфере 256 дропов быть не должно
         assert_eq!(
             hal_stats.chunks_dropped, 0,

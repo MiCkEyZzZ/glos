@@ -5,7 +5,7 @@ use std::{
         Arc,
     },
     thread,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant},
 };
 
 use crossbeam_channel::{Sender, TrySendError};
@@ -60,10 +60,6 @@ impl SdrDevice for SimulatedDevice {
         let mut stats = HalStats::default();
 
         let start_mono = Instant::now();
-        let start_epoch_ns = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
 
         let mut global_sample: u64 = 0;
         let mut _chunks_sent: u64 = 0;
@@ -74,9 +70,6 @@ impl SdrDevice for SimulatedDevice {
 
         while !stop_flag.load(Ordering::Relaxed) {
             data.clear();
-
-            // timestamp стартового сэмпла в чанке
-            let timestamp_ns = start_epoch_ns + (global_sample as f64 * sample_period_ns) as u64;
 
             // Генерация IQ
             for i in 0..self.chunk_samples as u64 {
@@ -92,7 +85,6 @@ impl SdrDevice for SimulatedDevice {
             let chunk_data = std::mem::take(&mut data);
 
             let chunk = IqChunk {
-                timestamp_ns,
                 sample_count: self.chunk_samples,
                 data: chunk_data,
             };

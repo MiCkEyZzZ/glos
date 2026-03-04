@@ -25,8 +25,6 @@ pub struct DeviceInfo {
 /// Порция сырых IQ байт, полученная от устройства за один callback/poll.
 #[derive(Debug, Clone)]
 pub struct IqChunk {
-    /// Unix timestamp начала чанка (наносекунды)
-    pub timestamp_ns: u64,
     /// Кол-во IQ пар в `data`
     pub sample_count: u32,
     /// Сырые байты
