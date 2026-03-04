@@ -4,7 +4,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use crossbeam_channel::RecvTimeoutError;
@@ -114,15 +114,22 @@ impl RecordingPipeline {
         header.compression = cfg.compression;
 
         let mut writer = GlosWriter::new(file, header)?;
+
         let sample_size = cfg.iq_format.sample_size();
         let block_samples = cfg.block_samples;
         let recv_timeout = Duration::from_millis(100);
         let stats_interval = Duration::from_secs(cfg.stats_interval_secs);
 
+        let session_start_unix_ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
+
+        let mut global_sample_index: u64 = 0;
+
         // Накопитель частичного блока
         let mut acc: Vec<u8> = Vec::with_capacity(block_samples as usize * sample_size);
         let mut acc_samples: u32 = 0;
-        let mut block_ts: Option<u64> = None; // timestamp первого чанка в блоке
         let session_start = Instant::now();
         let mut last_stats = Instant::now();
 
@@ -156,10 +163,6 @@ impl RecordingPipeline {
                 .samples_recorded
                 .fetch_add(chunk.sample_count as u64, Ordering::Relaxed);
 
-            //  Накапливаем в accumulator
-            if block_ts.is_none() {
-                block_ts = Some(chunk.timestamp_ns);
-            }
             acc.extend_from_slice(&chunk.data);
             acc_samples += chunk.sample_count;
 
@@ -167,10 +170,14 @@ impl RecordingPipeline {
             while acc_samples >= block_samples {
                 let n_bytes = block_samples as usize * sample_size;
                 let block_data: Vec<u8> = acc.drain(..n_bytes).collect();
-                let ts = block_ts.take().unwrap_or(0);
 
-                let block = IqBlock::new(ts, block_samples, block_data);
-                let block_bytes = block_samples as u64 * sample_size as u64 + 20; // approx
+                let block_first_sample_index = global_sample_index;
+
+                let timestamp_ns = session_start_unix_ns
+                    + (block_first_sample_index * 1_000_000_000) / cfg.sample_rate_hz as u64;
+
+                let block = IqBlock::new(timestamp_ns, block_samples, block_data);
+                let block_bytes = block_samples as u64 * sample_size as u64 + 20;
 
                 match writer.write_block(block) {
                     Ok(()) => {
@@ -182,11 +189,11 @@ impl RecordingPipeline {
                     Err(e) => {
                         metrics.write_errors.fetch_add(1, Ordering::Relaxed);
                         warn!("Write error: {e}");
-                        // Не прерываем — пробуем продолжить
                     }
                 }
 
                 acc_samples -= block_samples;
+                global_sample_index += block_samples as u64;
             }
 
             // Периодически выводим статистику
@@ -198,8 +205,13 @@ impl RecordingPipeline {
 
         // Flush частичного блока (если есть)
         if acc_samples > 0 {
-            let ts = block_ts.unwrap_or(0);
-            let block = IqBlock::new(ts, acc_samples, acc);
+            let block_first_sample_index = global_sample_index;
+
+            let timestamp_ns = session_start_unix_ns
+                + (block_first_sample_index * 1_000_000_000) / cfg.sample_rate_hz as u64;
+
+            let block = IqBlock::new(timestamp_ns, acc_samples, acc);
+
             if let Err(e) = writer.write_block(block) {
                 warn!("Failed to write final partial block: {e}");
                 metrics.write_errors.fetch_add(1, Ordering::Relaxed);
@@ -213,6 +225,7 @@ impl RecordingPipeline {
         writer.finish()?;
 
         info!("File finalized: {:?}", cfg.output_path);
+
         Ok(())
     }
 
