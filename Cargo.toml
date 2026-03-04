@@ -25,6 +25,7 @@ members = [
     "glos-analyzer",
     "glos-cli",
     "glos-types",
+    "glos-hal",
     "benches",
 ]
 

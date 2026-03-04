@@ -1,6 +1,8 @@
 use std::f32::consts::PI;
 
-/// Оконная ф-я для FFT
+use glos_types::IqFormat;
+use rustfft::num_complex::Complex32;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowFunction {
     Rectangular,
@@ -77,6 +79,37 @@ impl PowerSpectrum {
     }
 }
 
+/// Декодирует сырые байты IQ в вектор комплексных f32 выборок.
+pub fn decode_id(
+    data: &[u8],
+    format: IqFormat,
+) -> Vec<Complex32> {
+    match format {
+        IqFormat::Int8 => data
+            .chunks_exact(2)
+            .map(|c| Complex32::new(c[0] as i8 as f32 / 127.0, c[1] as i8 as f32 / 127.0))
+            .collect(),
+        IqFormat::Int16 => data
+            .chunks_exact(4)
+            .map(|c| {
+                let i = i16::from_be_bytes([c[0], c[1]]) as f32 / 32767.0;
+                let q = i16::from_be_bytes([c[2], c[3]]) as f32 / 32767.0;
+
+                Complex32::new(i, q)
+            })
+            .collect(),
+        IqFormat::Float32 => data
+            .chunks_exact(8)
+            .map(|c| {
+                let i = f32::from_be_bytes([c[0], c[1], c[2], c[3]]);
+                let q = f32::from_be_bytes([c[4], c[5], c[6], c[7]]);
+
+                Complex32::new(i, q)
+            })
+            .collect(),
+    }
+}
+
 impl Default for SpectrumConfig {
     fn default() -> Self {
         Self {
@@ -118,7 +151,10 @@ impl std::fmt::Display for WindowFunction {
 
 #[cfg(test)]
 mod tests {
-    use crate::WindowFunction;
+    use glos_types::IqFormat;
+    use rustfft::num_complex::Complex32;
+
+    use crate::{decode_id, WindowFunction};
 
     #[test]
     fn test_window_coefficients_hann_endpoint() {
@@ -155,5 +191,138 @@ mod tests {
             WindowFunction::Rectangular
         );
         assert!("unknown".parse::<WindowFunction>().is_err());
+    }
+
+    #[test]
+    fn test_decode_iq_int8() {
+        let data = vec![127i8 as u8, 0u8, 0u8, 127i8 as u8];
+        let decoded = decode_id(&data, IqFormat::Int8);
+
+        assert_eq!(decoded.len(), 2);
+        assert!(decoded[0].re > 0.99);
+        assert!(decoded[1].im > 0.99);
+    }
+
+    #[test]
+    fn test_decode_iq_int16() {
+        // Оригинальные float-сэмплы
+        let samples = vec![
+            Complex32::new(1.0, 0.0),
+            Complex32::new(0.0, -1.0),
+            Complex32::new(0.5, 0.5),
+            Complex32::new(-0.75, 0.25),
+        ];
+
+        // Кодируем вручную в int16 BE
+        let mut data = Vec::new();
+
+        for s in &samples {
+            let i = (s.re * 32767.0) as i16;
+            let q = (s.im * 32767.0) as i16;
+
+            data.extend_from_slice(&i.to_be_bytes());
+            data.extend_from_slice(&q.to_be_bytes());
+        }
+
+        // Декодируем
+        let decoded = decode_id(&data, IqFormat::Int16);
+
+        assert_eq!(decoded.len(), samples.len());
+
+        for (orig, dec) in samples.iter().zip(decoded.iter()) {
+            assert!((orig.re - dec.re).abs() < 1e-4);
+            assert!((orig.im - dec.im).abs() < 1e-4);
+        }
+    }
+
+    #[test]
+    fn test_decode_iq_float32() {
+        // Оригинальные float-сэмплы
+        let samples = vec![
+            Complex32::new(1.0, -1.0),
+            Complex32::new(0.5, 0.25),
+            Complex32::new(-0.75, 0.125),
+        ];
+
+        let mut data = Vec::new();
+
+        for s in &samples {
+            data.extend_from_slice(&s.re.to_be_bytes());
+            data.extend_from_slice(&s.im.to_be_bytes());
+        }
+
+        let decoded = decode_id(&data, IqFormat::Float32);
+
+        assert_eq!(decoded.len(), samples.len());
+
+        for (orig, dec) in samples.iter().zip(decoded.iter()) {
+            assert!((orig.re - dec.re).abs() < 1e-6);
+            assert!((orig.im - dec.im).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_decode_iq_int16_roundtrip() {
+        // Генерируем int16 BE IQ
+        let samples = vec![
+            Complex32::new(1.0, 0.0),
+            Complex32::new(0.0, -1.0),
+            Complex32::new(0.5, 0.5),
+        ];
+
+        let mut data = Vec::new();
+
+        for s in &samples {
+            let i = (s.re * 32767.0) as i16;
+            let q = (s.im * 32767.0) as i16;
+
+            data.extend_from_slice(&i.to_be_bytes());
+            data.extend_from_slice(&q.to_be_bytes());
+        }
+
+        let decoded = decode_id(&data, IqFormat::Int16);
+
+        assert_eq!(decoded.len(), 3);
+        assert!((decoded[0].re - 1.0).abs() < 1e-4, "I[0] ≈ 1.0");
+        assert!(decoded[0].im.abs() < 1e-4, "Q[0] ≈ 0.0");
+    }
+
+    #[test]
+    fn test_decode_iq_int8_extremes() {
+        let data = vec![
+            127i8 as u8,
+            127i8 as u8, // max
+            (-128i8) as u8,
+            (-128i8) as u8, // min
+        ];
+
+        let decoded = decode_id(&data, IqFormat::Int8);
+
+        // max
+        assert!((decoded[0].re - 1.0).abs() < 1e-6);
+        assert!((decoded[0].im - 1.0).abs() < 1e-6);
+
+        // min (будет приблизительно = 1.0078 из-за / 127.0)
+        assert!(decoded[1].re < -1.0);
+        assert!(decoded[1].im < -1.0);
+    }
+
+    #[test]
+    fn test_decode_iq_int16_extremes() {
+        let mut data = Vec::new();
+
+        let max = 32767i16;
+        let min = -32768i16;
+
+        data.extend_from_slice(&max.to_be_bytes());
+        data.extend_from_slice(&max.to_be_bytes());
+        data.extend_from_slice(&min.to_be_bytes());
+        data.extend_from_slice(&min.to_be_bytes());
+
+        let decoded = decode_id(&data, IqFormat::Int16);
+
+        assert_eq!(decoded.len(), 2);
+        assert!((decoded[0].re - 1.0).abs() < 1e-6);
+        assert!(decoded[1].re < -1.0);
     }
 }

@@ -9,14 +9,11 @@ use std::{
 
 use crossbeam_channel::RecvTimeoutError;
 use glos_core::{GlosHeaderExt, GlosWriter, IqBlockExt};
+use glos_hal::{IqChunk, SdrDevice};
 use glos_types::{GlosHeader, IqBlock};
 use log::{info, warn};
 
-use crate::{
-    device::{IqChunk, SdrDevice},
-    metrics::RecorderMetrics,
-    RecorderConfig, RecorderResult,
-};
+use crate::{metrics::RecorderMetrics, RecorderConfig, RecorderResult};
 
 /// Оркестрирует сессию записи.
 pub struct RecordingPipeline {
@@ -68,12 +65,10 @@ impl RecordingPipeline {
 
         // Захват потока
         let capture_handle = std::thread::spawn(move || {
-            let result = device.run(tx, metrics_capture, stop_flag_capture);
-
+            let result = device.run(tx, stop_flag_capture);
             if let Err(ref e) = result {
                 warn!("Capture thread error: {e}");
             }
-
             result
         });
 
@@ -85,7 +80,17 @@ impl RecordingPipeline {
 
         // Дожидаемся завершения потока захвата
         match capture_handle.join() {
-            Ok(Ok(())) => {}
+            Ok(Ok(hal_stats)) => {
+                if hal_stats.chunks_dropped > 0 {
+                    metrics_capture
+                        .dropped_samples
+                        .fetch_add(hal_stats.chunks_dropped, Ordering::Relaxed);
+                    warn!(
+                        "Capture: {} chunks dropped (ring buffer overflow)",
+                        hal_stats.chunks_dropped
+                    );
+                }
+            }
             Ok(Err(e)) => warn!("Capture thread finished with error: {e}"),
             Err(_) => warn!("Capture thread panicked"),
         }
@@ -103,12 +108,12 @@ impl RecordingPipeline {
         // Открываем файл и создаём GlosWriter
         let file = File::create(&cfg.output_path)?;
         let mut header = GlosHeader::new(cfg.sdr_type(), cfg.sample_rate_hz, cfg.center_freq_hz);
+
         header.gain_db = cfg.gain_db;
         header.iq_format = cfg.iq_format;
         header.compression = cfg.compression;
 
         let mut writer = GlosWriter::new(file, header)?;
-
         let sample_size = cfg.iq_format.sample_size();
         let block_samples = cfg.block_samples;
         let recv_timeout = Duration::from_millis(100);
@@ -118,7 +123,6 @@ impl RecordingPipeline {
         let mut acc: Vec<u8> = Vec::with_capacity(block_samples as usize * sample_size);
         let mut acc_samples: u32 = 0;
         let mut block_ts: Option<u64> = None; // timestamp первого чанка в блоке
-
         let session_start = Instant::now();
         let mut last_stats = Instant::now();
 
@@ -235,11 +239,11 @@ mod tests {
     use std::path::PathBuf;
 
     use glos_core::{read_all_blocks, GlosReader};
+    use glos_hal::{DeviceKind, SimulatedDevice};
     use glos_types::{Compression, IqFormat};
     use tempfile::NamedTempFile;
 
     use super::*;
-    use crate::{device::SimulatedDevice, DeviceKind};
 
     fn test_config(path: PathBuf) -> RecorderConfig {
         RecorderConfig {
@@ -250,7 +254,7 @@ mod tests {
             iq_format: IqFormat::Int16,
             compression: Compression::None,
             output_path: path,
-            duration_secs: Some(1), // 1 секунда → завершается сам
+            duration_secs: Some(1), // 1 секунда -> завершается сам
             block_samples: 10_000,
             ring_capacity: 32,
             stats_interval_secs: 60, // не выводим stats в тестах

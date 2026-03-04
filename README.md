@@ -97,6 +97,8 @@ Typical use cases include:
 
 ## Architecture (high level)
 
+Simple conceptual flow:
+
 ```
 [ SDR / GNSS Receiver ]
         ↓
@@ -116,6 +118,8 @@ Core components are split into reusable crates:
 - **glos-replayer** — replay engine
 - **glos-analyzer** — DSP and analysis tools
 - **glos-ui** — visualization (optional)
+- **glos-hal** — hardware abstraction layer for SDR devices
+- **glos** — (optional) public API / facade crate for high-level clients
 
 ## Repository layout
 
@@ -124,10 +128,99 @@ glos
 ├── glos-analyzer
 ├── glos-cli
 ├── glos-core
+├── glos-hal
 ├── glos-recorder
 ├── glos-replayer
 ├── glos-types
 └── glos-ui
+```
+
+## Architecture Overview
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+
+    subgraph Applications
+        CLI[glos-cli]
+        UI[glos-ui]
+        EXT[External App]
+    end
+
+    subgraph Public_API
+        GLOS[glos (public API)]
+    end
+
+    subgraph Core
+        CORE[glos-core]
+    end
+
+    subgraph Use_Cases
+        REC[glos-recorder]
+        REP[glos-replayer]
+        ANA[glos-analyzer]
+    end
+
+    subgraph HAL
+        HAL_LAYER[glos-hal]
+    end
+
+    subgraph Hardware
+        SIM[Sim Device]
+        HACKRF[HackRF]
+        PLUTO[PlutoSDR]
+    end
+
+    subgraph OS
+        DRIVERS[OS Drivers]
+    end
+
+    CLI --> GLOS
+    UI --> GLOS
+    EXT --> GLOS
+
+    GLOS --> REC
+    GLOS --> REP
+    GLOS --> ANA
+
+    REC --> CORE
+    REP --> CORE
+    ANA --> CORE
+
+    REC --> HAL_LAYER
+    REP --> HAL_LAYER
+
+    HAL_LAYER --> SIM
+    HAL_LAYER --> HACKRF
+    HAL_LAYER --> PLUTO
+
+    SIM --> DRIVERS
+    HACKRF --> DRIVERS
+    PLUTO --> DRIVERS
+```
+
+## Recorder (detailed flow)
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+
+    HW[Device] --> HAL[glos-hal]
+    HAL --> REC[glos-recorder]
+    REC --> CORE[glos-core format]
+    CORE --> FILE[.glos file]
+```
+
+## Replayer (detailed flow)
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+
+    FILE[.glos file] --> CORE[glos-core]
+    CORE --> REP[glos-replayer]
+    REP --> HAL[glos-hal]
+    HAL --> HW[Device / UDP]
 ```
 
 ## Quick start
