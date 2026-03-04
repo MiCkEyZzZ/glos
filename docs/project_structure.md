@@ -83,6 +83,25 @@ glos
 │   ├── LICENSE
 │   ├── Makefile
 │   └── README.md
+├── glos-hal
+│   ├── docs
+│   │   ├── roadmap.md
+│   │   └── project_structure.md
+│   ├── src
+│   │   ├── device.rs
+│   │   ├── error.rs
+│   │   ├── hackrf.rs
+│   │   ├── lib.rs
+│   │   ├── lime.rs
+│   │   ├── pluto.rs
+│   │   ├── sim.rs
+│   │   ├── types.rs
+│   │   └── usrp.rs
+│   ├── .gitignore
+│   ├── Cargo.toml
+│   ├── LICENSE
+│   ├── Makefile
+│   └── README.md
 ├── glos-recorder
 │   ├── docs
 │   │   ├── roadmap.md

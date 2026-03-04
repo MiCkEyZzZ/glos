@@ -1,0 +1,24 @@
+[package]
+name = "glos-hal"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Hardware abstraction layer for glos, the cross-platform, safe API"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+license.workspace = true
+
+[dependencies]
+glos-types = { path = "../glos-types" }
+
+crossbeam-channel = { workspace = true }
+
+[features]
+default = ["sim"]
+
+hackrf = []
+pluto = []
+sim = []
+usrp = []
+lime = []

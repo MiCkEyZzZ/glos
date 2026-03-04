@@ -1,6 +1,7 @@
 ## GLOS Replayer — Quick Test Guide
 
-This section demonstrates how to record a test signal and replay it over UDP using the built-in developer listener.
+This section demonstrates how to record a test signal and replay it over
+UDP using the built-in developer listener.
 
 ---
 
@@ -101,7 +102,8 @@ The listener displays:
 
 ### Notes
 
-The Python UDP listener is provided to ensure consistent debugging across platforms without relying on system-specific tools such as:
+The Python UDP listener is provided to ensure consistent debugging across
+platforms without relying on system-specific tools such as:
 
 - `nc`
 - `socat`
