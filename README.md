@@ -148,7 +148,7 @@ flowchart TD
     end
 
     subgraph Public_API
-        GLOS[glos (public API)]
+        GLOS[glos public API]
     end
 
     subgraph Core
