@@ -14,8 +14,8 @@ pub enum ReplayError {
     #[error("Configuration error: {0}")]
     Config(String),
 
-    #[error("Network error: {0}")]
-    Network(String),
+    #[error("Network error")]
+    Network(#[source] std::io::Error),
 
     #[error("Timing error: {0}")]
     Timing(String),

@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use glos_types::IqFormat;
-use rustfft::num_complex::Complex32;
+use rustfft::{num_complex::Complex32, FftPlanner};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowFunction {
@@ -26,6 +26,16 @@ pub struct SpectrumConfig {
 pub struct PowerSpectrum {
     pub power_db: Vec<f32>,
     pub timestamp_ns: u64,
+}
+
+/// Основной процессор FFT + sliding average.
+pub struct SpectrumProcessor {
+    config: SpectrumConfig,
+    planner: FftPlanner<f32>,
+    window_coeff: Vec<f32>,
+    power_norm: f32,
+    avg_acc: Vec<f32>,
+    avg_filled: usize,
 }
 
 impl WindowFunction {
@@ -76,6 +86,90 @@ impl PowerSpectrum {
                 center_freq_hz as f64 + shifted as f64 * bin_width
             })
             .collect()
+    }
+}
+
+impl SpectrumProcessor {
+    pub fn new(config: SpectrumConfig) -> Self {
+        let window_coeff = config.window.coefficients(config.fft_size);
+        let power_norm = config.window.power_norm(config.fft_size);
+        let avg_acc = vec![0.0f32; config.fft_size];
+
+        Self {
+            config,
+            planner: FftPlanner::new(),
+            window_coeff,
+            power_norm,
+            avg_acc,
+            avg_filled: 0,
+        }
+    }
+
+    pub fn process_block(
+        &mut self,
+        samples: &[Complex32],
+        timestamp_ns: u64,
+    ) -> Option<PowerSpectrum> {
+        let n = self.config.fft_size;
+
+        if samples.len() < n {
+            return None;
+        }
+
+        let fft = self.planner.plan_fft_forward(n);
+        let mut last_spectrum: Option<Vec<f32>> = None;
+
+        // Обрабатываем все поля окна в блоке
+        for window_start in (0..=samples.len() - n).step_by(n / 2) {
+            let window_samples = &samples[window_start..window_start + n];
+            let mut buf: Vec<Complex32> = window_samples
+                .iter()
+                .zip(self.window_coeff.iter())
+                .map(|(s, &w)| Complex32::new(s.re * w, s.im * w))
+                .collect();
+
+            fft.process(&mut buf);
+
+            // fftshift: вторая половина идёт в начало
+            let mut shifted = Vec::with_capacity(n);
+
+            shifted.extend_from_slice(&buf[n / 2..]);
+            shifted.extend_from_slice(&buf[..n / 2]);
+
+            // Мощность в дБFS
+            let power: Vec<f32> = shifted
+                .iter()
+                .map(|c| {
+                    let mag_sq = c.norm_sqr() / (self.power_norm * n as f32);
+                    10.0 * (mag_sq.max(1e-12)).log10()
+                })
+                .collect();
+
+            // Накапливаем для скользящего среднего
+            for (acc, &p) in self.avg_acc.iter_mut().zip(power.iter()) {
+                *acc += p;
+            }
+
+            self.avg_filled += 1;
+
+            if self.avg_filled >= self.config.avg_count {
+                let avg: Vec<f32> = self
+                    .avg_acc
+                    .iter()
+                    .map(|&s| s / self.avg_filled as f32)
+                    .collect();
+
+                self.avg_acc.fill(0.0);
+                self.avg_filled = 0;
+
+                last_spectrum = Some(avg);
+            }
+        }
+
+        last_spectrum.map(|power_db| PowerSpectrum {
+            power_db,
+            timestamp_ns,
+        })
     }
 }
 
@@ -154,7 +248,7 @@ mod tests {
     use glos_types::IqFormat;
     use rustfft::num_complex::Complex32;
 
-    use crate::{decode_id, PowerSpectrum, WindowFunction};
+    use crate::{decode_id, PowerSpectrum, SpectrumConfig, SpectrumProcessor, WindowFunction};
 
     #[test]
     fn test_window_coefficients_hann_endpoint() {
@@ -369,6 +463,154 @@ mod tests {
 
         for i in 0..n {
             assert!((w[i] - w[n - 1 - i]).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_spectrum_processor_new_initialization() {
+        let cfg = SpectrumConfig {
+            fft_size: 512,
+            window: WindowFunction::Hann,
+            avg_count: 4,
+            waterfall_rows: 10,
+            sample_rate_hz: 1_000_000,
+            center_freq_hz: 100_000_000,
+        };
+
+        let proc = SpectrumProcessor::new(cfg.clone());
+
+        assert_eq!(proc.window_coeff.len(), 512);
+        assert_eq!(proc.avg_acc.len(), 512);
+        assert_eq!(proc.avg_filled, 0);
+        assert!(proc.power_norm > 0.0);
+    }
+
+    #[test]
+    fn test_rectangular_power_norm_exact() {
+        let n = 256;
+        let norm = WindowFunction::Rectangular.power_norm(n);
+
+        assert!((norm - n as f32).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_process_block_too_small() {
+        let cfg = SpectrumConfig {
+            fft_size: 1024,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+        let samples = vec![Complex32::new(0.0, 0.0); 100];
+        let res = proc.process_block(&samples, 0);
+
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_process_block_avg_count() {
+        let cfg = SpectrumConfig {
+            fft_size: 256,
+            avg_count: 2,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+
+        let samples = vec![Complex32::new(0.0, 0.0); 256];
+
+        let r1 = proc.process_block(&samples, 0);
+        let r2 = proc.process_block(&samples, 1);
+
+        assert!(r1.is_none());
+        assert!(r2.is_some());
+    }
+
+    #[test]
+    fn test_process_block_output_size() {
+        let cfg = SpectrumConfig {
+            fft_size: 512,
+            avg_count: 1,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+        let samples = vec![Complex32::new(0.0, 0.0); 512];
+        let res = proc.process_block(&samples, 0).unwrap();
+
+        assert_eq!(res.power_db.len(), 512);
+    }
+
+    #[test]
+    fn test_fftshift_dc_center() {
+        let cfg = SpectrumConfig {
+            fft_size: 128,
+            avg_count: 1,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+        let samples = vec![Complex32::new(1.0, 0.0); 128];
+        let res = proc.process_block(&samples, 0).unwrap();
+        let center = 128 / 2;
+        let max_bin = res
+            .power_db
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .unwrap()
+            .0;
+
+        assert_eq!(max_bin, center);
+    }
+
+    #[test]
+    fn test_process_multiple_windows() {
+        let cfg = SpectrumConfig {
+            fft_size: 128,
+            avg_count: 4,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+        let samples = vec![Complex32::new(0.0, 0.0); 512];
+        let res = proc.process_block(&samples, 0);
+
+        assert!(res.is_some());
+    }
+
+    #[test]
+    fn test_timestamp_propagation() {
+        let cfg = SpectrumConfig {
+            fft_size: 128,
+            avg_count: 1,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+        let samples = vec![Complex32::new(0.0, 0.0); 128];
+        let ts = 123456;
+        let res = proc.process_block(&samples, ts).unwrap();
+
+        assert_eq!(res.timestamp_ns, ts);
+    }
+
+    #[test]
+    fn test_power_no_nan() {
+        let cfg = SpectrumConfig {
+            fft_size: 256,
+            avg_count: 1,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+
+        let samples = vec![Complex32::new(0.0, 0.0); 256];
+
+        let res = proc.process_block(&samples, 0).unwrap();
+
+        for v in res.power_db {
+            assert!(v.is_finite());
         }
     }
 }
