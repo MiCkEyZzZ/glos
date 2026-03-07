@@ -1,7 +1,7 @@
 use std::net::UdpSocket;
 
 use glos_core::{GlosHeaderExt, IqBlockExt};
-use glos_replayer::{ReplayConfiq, ReplaySession, UdpPacket};
+use glos_replayer::{ReplayConfig, ReplaySession, UdpPacket};
 use glos_types::{GlosHeader, IqBlock, IqFormat, SdrType};
 use tempfile::NamedTempFile;
 
@@ -32,18 +32,18 @@ fn test_integration_record_then_replay() {
 
     // --- Воспроизведение ---
     let listener = UdpSocket::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap().to_string();
+    let addr = listener.local_addr().unwrap();
     listener
         .set_read_timeout(Some(Duration::from_millis(500)))
         .unwrap();
 
-    let config = ReplayConfiq {
+    let config = ReplayConfig {
         input_path: tmp.path().to_path_buf(),
         target_addr: addr,
         speed: 100.0,
         loop_playback: false,
         stats_interval_secs: 60,
-        bind_addr: "0.0.0.0:0".to_string(),
+        bind_addr: "0.0.0.0:0".parse().unwrap(),
     };
     let session = ReplaySession::new(config).unwrap();
     session.run().unwrap();

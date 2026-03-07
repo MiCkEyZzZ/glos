@@ -12,12 +12,12 @@ use glos_core::{GlosReader, ReadStats};
 use glos_types::GlosHeader;
 
 use crate::{
-    ReplayConfiq, ReplayError, ReplayMetrics, ReplayResult, TimingController, UdpPacketizer,
+    ReplayConfig, ReplayError, ReplayMetrics, ReplayResult, TimingController, UdpPacketizer,
 };
 
 /// Сессия воспроизведения (single-threaded).
 pub struct ReplaySession {
-    config: ReplayConfiq,
+    config: ReplayConfig,
     metrics: Arc<ReplayMetrics>,
     stop_flag: Arc<AtomicBool>,
     pause_flag: Arc<AtomicBool>,
@@ -25,7 +25,7 @@ pub struct ReplaySession {
 
 impl ReplaySession {
     /// Создаёт сессию, проверяя конфигурацию.
-    pub fn new(config: ReplayConfiq) -> ReplayResult<Self> {
+    pub fn new(config: ReplayConfig) -> ReplayResult<Self> {
         if config.speed <= 0.0 {
             return Err(ReplayError::Config("speed must be > 0".to_string()));
         }
@@ -58,14 +58,12 @@ impl ReplaySession {
         let session_start = Instant::now();
         let stats_interval = std::time::Duration::from_secs(cfg.stats_interval_secs);
 
-        let socket = UdpSocket::bind(&cfg.bind_addr)?;
-        socket.connect(&cfg.target_addr)?;
+        let socket = UdpSocket::bind(cfg.bind_addr)?;
+        socket.connect(cfg.target_addr)?;
 
-        let header = {
-            let f = File::open(&cfg.input_path)?;
-            let r = GlosReader::new(f)?;
-            r.header().clone()
-        };
+        let file = File::open(&cfg.input_path)?;
+        let mut reader = GlosReader::new(file)?;
+        let header = reader.header().clone();
 
         Self::print_header_info(&header, cfg);
 
@@ -86,7 +84,7 @@ impl ReplaySession {
             }
 
             let file = File::open(&cfg.input_path)?;
-            let mut reader = GlosReader::new(file)?;
+            reader = GlosReader::new(file)?;
 
             while let Some(result) = reader.next_block() {
                 if stop.load(Ordering::Relaxed) {
@@ -119,8 +117,8 @@ impl ReplaySession {
                             metrics.bytes_sent.fetch_add(n as u64, Ordering::Relaxed);
                         }
                         Err(e) => {
-                            eprintln!("[replayer] UDP send error: {e}");
                             metrics.send_errors.fetch_add(1, Ordering::Relaxed);
+                            return Err(ReplayError::Network(e));
                         }
                     }
                 }
@@ -153,7 +151,7 @@ impl ReplaySession {
 
     fn print_header_info(
         h: &GlosHeader,
-        cfg: &ReplayConfiq,
+        cfg: &ReplayConfig,
     ) {
         eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         eprintln!("  Input         : {:?}", cfg.input_path);
@@ -187,15 +185,17 @@ impl ReplaySession {
 }
 
 /// Парсит `udp://host:port` или просто `host:port`.
-pub fn parse_udp_target(s: &str) -> Result<String, String> {
+pub fn parse_udp_target(s: &str) -> Result<std::net::SocketAddr, String> {
     let addr = s.strip_prefix("udp://").unwrap_or(s);
+
     addr.parse::<std::net::SocketAddr>()
-        .map(|a| a.to_string())
         .map_err(|e| format!("Invalid UDP address '{s}': {e}"))
 }
 
 #[cfg(test)]
 mod tests {
+    use std::net::SocketAddr;
+
     use glos_core::{GlosHeaderExt, GlosWriter, IqBlockExt};
     use glos_types::{Compression, IqBlock, IqFormat, SdrType};
     use tempfile::NamedTempFile;
@@ -246,13 +246,13 @@ mod tests {
 
         let tmp = make_glos_file(3, 100);
 
-        let config = ReplayConfiq {
+        let config = ReplayConfig {
             input_path: tmp.path().to_path_buf(),
-            target_addr: addr.clone(),
+            target_addr: addr.parse().unwrap(),
             speed: 100.0, // очень быстро, без задержек
             loop_playback: false,
             stats_interval_secs: 60,
-            bind_addr: "0.0.0.0:0".to_string(),
+            bind_addr: "0.0.0.0:0".parse().unwrap(),
         };
 
         let session = ReplaySession::new(config).unwrap();
@@ -281,13 +281,13 @@ mod tests {
         let addr = listener.local_addr().unwrap().to_string();
 
         let tmp = make_glos_file(5, 50);
-        let config = ReplayConfiq {
+        let config = ReplayConfig {
             input_path: tmp.path().to_path_buf(),
-            target_addr: addr,
+            target_addr: addr.parse().unwrap(),
             speed: 100.0,
             loop_playback: false,
             stats_interval_secs: 60,
-            bind_addr: "0.0.0.0:0".to_string(),
+            bind_addr: "0.0.0.0:0".parse().unwrap(),
         };
 
         let session = ReplaySession::new(config).unwrap();
@@ -306,13 +306,13 @@ mod tests {
 
         // Большой файл — много блоков
         let tmp = make_glos_file(100, 1000);
-        let config = ReplayConfiq {
+        let config = ReplayConfig {
             input_path: tmp.path().to_path_buf(),
-            target_addr: addr,
+            target_addr: addr.parse().unwrap(),
             speed: 100.0,
             loop_playback: false,
             stats_interval_secs: 60,
-            bind_addr: "0.0.0.0:0".to_string(),
+            bind_addr: "0.0.0.0:0".parse().unwrap(),
         };
 
         let session = ReplaySession::new(config).unwrap();
@@ -361,13 +361,13 @@ mod tests {
             .unwrap();
         writer.finish().unwrap();
 
-        let config = ReplayConfiq {
+        let config = ReplayConfig {
             input_path: tmp.path().to_path_buf(),
-            target_addr: addr,
+            target_addr: addr.parse().unwrap(),
             speed: 100.0,
             loop_playback: false,
             stats_interval_secs: 60,
-            bind_addr: "0.0.0.0:0".to_string(),
+            bind_addr: "0.0.0.0:0".parse().unwrap(),
         };
 
         let session = ReplaySession::new(config).unwrap();
@@ -385,24 +385,24 @@ mod tests {
     fn test_parse_udp_target() {
         assert_eq!(
             parse_udp_target("udp://127.0.0.1:5555").unwrap(),
-            "127.0.0.1:5555"
+            "127.0.0.1:5555".parse::<SocketAddr>().unwrap()
         );
         assert_eq!(
             parse_udp_target("127.0.0.1:5555").unwrap(),
-            "127.0.0.1:5555"
+            "127.0.0.1:5555".parse::<SocketAddr>().unwrap()
         );
         assert!(parse_udp_target("not_an_addr").is_err());
     }
 
     #[test]
     fn test_replay_config_invalid_speed() {
-        let config = ReplayConfiq {
+        let config = ReplayConfig {
             speed: -1.0,
             ..Default::default()
         };
         assert!(ReplaySession::new(config).is_err());
 
-        let config = ReplayConfiq {
+        let config = ReplayConfig {
             speed: 0.0,
             ..Default::default()
         };

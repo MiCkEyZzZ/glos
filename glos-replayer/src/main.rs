@@ -8,7 +8,7 @@ use std::{
 };
 
 use clap::Parser;
-use glos_replayer::{parse_udp_target, ReplayConfiq, ReplaySession};
+use glos_replayer::{parse_udp_target, ReplayConfig, ReplaySession};
 use log::{error, info, warn};
 use signal_hook::{consts::signal::SIGTSTP, flag};
 
@@ -86,13 +86,13 @@ fn main() {
         std::process::exit(1);
     }
 
-    let config = ReplayConfiq {
+    let config = ReplayConfig {
         input_path: cli.input.clone(),
         target_addr,
         speed: cli.speed,
         loop_playback: cli.r#loop,
         stats_interval_secs: cli.stats_interval,
-        bind_addr: cli.bind.clone(),
+        bind_addr: cli.bind.parse().expect("invalid bind addr"),
     };
 
     let session = match ReplaySession::new(config) {
