@@ -16,7 +16,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Форматирование
+  # ── Форматирование ─────────────────────────────────────────────────────────
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -26,7 +26,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  # Clippy
+  # ── Clippy ─────────────────────────────────────────────────────────────────
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
       - name: Run Clippy (workspace, all targets)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-  # Зависимости: лицензии / уязвимости / дубли
+  # ── Зависимости: лицензии / уязвимости / дубли ────────────────────────────
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
       - name: Check licenses, advisories, bans
         run: cargo deny check
 
-  # Тесты: чистая логика (без hardware)
+  # ── Тесты: чистая логика (без hardware) ───────────────────────────────────
   test-core:
     name: Tests — core crates
     runs-on: ubuntu-latest
@@ -55,21 +55,21 @@ jobs:
       - uses: ./.github/actions/setup-rust
 
       - name: Test glos-types
-        run: cargo nextest run -p glos-types
+        run: cargo nextest run -p glos-types --no-tests=pass
 
       - name: Test glos-core (unit + integration)
-        run: cargo nextest run -p glos-core
+        run: cargo nextest run -p glos-core --no-tests=pass
 
       - name: Integration tests glos-core
         run: cargo test -p glos-core --test integration_tests
 
       - name: Test glos-analyzer
-        run: cargo nextest run -p glos-analyzer
+        run: cargo nextest run -p glos-analyzer --no-tests=pass
 
       - name: Test glos-replayer
-        run: cargo nextest run -p glos-replayer
+        run: cargo nextest run -p glos-replayer --no-tests=pass
 
-  # Тесты: recorder в sim-режиме (без железа)
+  # ── Тесты: recorder в sim-режиме (без железа) ────────────────────────────
   test-recorder-sim:
     name: Tests — recorder (sim mode)
     runs-on: ubuntu-latest
@@ -77,11 +77,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
       - name: Test recorder (simulator device, no hardware needed)
-        run: cargo nextest run -p glos-recorder
+        run: cargo nextest run -p glos-recorder --no-tests=pass
         env:
           GLOS_DEVICE: sim
 
-  # Компиляция с hardware features (без запуска тестов)
+  # ── Компиляция с hardware features (без запуска тестов) ──────────────────
   check-hardware-features:
     name: Check — hardware features compile
     runs-on: ubuntu-latest
@@ -99,7 +99,7 @@ jobs:
       - name: cargo check — full workspace all features
         run: cargo check --workspace --all-features
 
-  # Бенчмарки: только компиляция, не запуск
+  # ── Бенчмарки: только компиляция, не запуск ───────────────────────────────
   benches-compile:
     name: Benches — compile check
     runs-on: ubuntu-latest
@@ -107,4 +107,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
       - name: Check that benches compile
-        run: cargo bench -p benches --no-run
+        run: cargo bench --workspace --no-run

@@ -13,9 +13,9 @@ skip = []
 skip-tree = []
 
 [advisories]
-yanked      = "deny"
-unmaintained = "warn"
-unsound     = "deny"
+yanked       = "deny"
+unmaintained = "all"
+unsound      = "all"
 ignore      = [
     # Транзитивная зависимость через image/rav1e, прямого влияния нет
     { id = "RUSTSEC-2024-0436", reason = "transitive via image crate, no direct impact on GLOS" },
@@ -38,7 +38,6 @@ allow = [
     "NCSA",
     "CC0-1.0",
 ]
-
 private = { ignore = true }
 
 # Источники
