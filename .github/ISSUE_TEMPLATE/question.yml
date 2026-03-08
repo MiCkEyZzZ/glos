@@ -1,5 +1,5 @@
 name: Question
-description: Ask the Glos developers or community
+description: Ask the GLOS developers or community
 title: "[QUESTION] <short summary>"
 labels: ["question"]
 body:
@@ -8,25 +8,46 @@ body:
       value: |
         👋 **Welcome!**
 
-        This issue tracker is primarily for reporting bugs and suggesting improvements to Glos.
+        This issue tracker is primarily for bugs and feature proposals.
+        For general usage questions, please check community resources first:
 
-        For general usage questions, please check our community resources first:
-        - [Glos Community Chat (Pachca)](https://app.pachca.com/join?invite_token=EakW3nIgma_ezqFc&company_name=Glos+Community&company_id=416542)
-        - [Glos Discussions](https://github.com/MiCkEyZzZ/glos/discussions)
+        - [GLOS Community Chat (Pachca)](https://app.pachca.com/join?invite_token=EakW3nIgma_ezqFc&company_name=Glos+Community&company_id=416542)
+        - [GLOS Discussions](https://github.com/MiCkEyZzZ/glos/discussions)
+        - [Documentation](https://github.com/MiCkEyZzZ/glos/tree/master/docs)
 
-        Please also search existing issues before submitting your question.
-        If your question is about a third-party client or integration, consider reaching out to its maintainers.
+        Please search existing issues and discussions before submitting.
 
-        ---
-        If you still have a question, please describe it below:
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Recording (glos-recorder, SDR setup)
+        - Replay (glos-replayer, UDP output)
+        - Analysis (glos-analyzer, FFT, waterfall)
+        - .glos file format
+        - Hardware (HackRF, PlutoSDR, USRP, LimeSDR)
+        - Build / compilation
+        - Architecture / design
+        - Integration with other tools
+        - Other
+    validations:
+      required: true
 
   - type: textarea
     id: your_question
     attributes:
       label: Your question
-      description: Please clearly describe your question about Glos.
+      description: Describe your question clearly. Include relevant commands, configs, or code snippets.
       placeholder: |
         Example:
-        How can I configure Glos to use a custom authentication backend?
+        How do I record at 4 MHz sample rate with HackRF and then replay it over UDP
+        without dropping IQ blocks? What buffer size should I use?
     validations:
       required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What have you already tried?
+      description: Docs read, commands attempted, errors encountered — helps avoid duplicate answers.

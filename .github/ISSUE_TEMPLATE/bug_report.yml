@@ -1,34 +1,80 @@
 name: Bug report
-description: Report a bug in the Glos
-title: "[BUG]"
+description: Report a bug in GLOS
+title: "[BUG] <short description>"
 labels: [bug]
-
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug! Please fill out the template below.
+        Thanks for taking the time to report a bug!
+        Please fill out the template below as completely as possible.
 
-  - type: input
+  - type: textarea
     id: description
     attributes:
       label: What went wrong?
       description: Describe the bug in detail.
-      placeholder: The glos panicked when I called `Something`…
+      placeholder: |
+        Example: glos-recorder panicked when recording with `--device sim --compress lz4`,
+        or glos-replayer sent malformed UDP packets when replaying a file recorded at 4 MHz sample rate.
+    validations:
+      required: true
 
-  - type: input
+  - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-      description: List the minimal steps to reproduce the issue.
+      description: Minimal steps to reproduce the issue.
       placeholder: |
-        1. Start glos
-        2. Run `...`
-        3. Observe panic
+        1. cargo run -p glos-recorder -- --device sim --freq 1602MHz --rate 2MHz --output signal.glos --duration 5
+        2. cargo run -p glos-replayer -- --input signal.glos --target udp://127.0.0.1:5005
+        3. Observe panic / unexpected output
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      multiple: true
+      options:
+        - glos-core (file format / IQ handling)
+        - glos-recorder
+        - glos-replayer
+        - glos-analyzer
+        - glos-hal (hardware abstraction)
+        - glos-cli
+        - glos-ui
+        - glos-types
+        - .glos file format
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: SDR device used
+      options:
+        - Simulator (--device sim)
+        - HackRF One
+        - PlutoSDR
+        - USRP
+        - LimeSDR
+        - Other / not applicable
+    validations:
+      required: true
 
   - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: OS, Rust version, Glos version, etc.
-      placeholder: e.g. Ubuntu 22.04, nightly-2025-05-10
+      description: OS, Rust toolchain, GLOS version / commit, SDR driver versions if applicable.
+      placeholder: |
+        OS: Ubuntu 24.04
+        Rust: nightly-2026-02-14
+        GLOS: commit abc1234 (or version 0.1.0)
+        libhackrf: 2023.01.1
+        Sample rate: 2 MHz, Center freq: 1602 MHz
+    validations:
+      required: true
