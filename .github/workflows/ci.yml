@@ -16,7 +16,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # ── Форматирование ─────────────────────────────────────────────────────────
+  # Форматирование
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -26,7 +26,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  # ── Clippy ─────────────────────────────────────────────────────────────────
+  # Clippy
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
       - name: Run Clippy (workspace, all targets)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-  # ── Зависимости: лицензии / уязвимости / дубли ────────────────────────────
+  # Зависимости: лицензии / уязвимости / дубли
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
       - name: Check licenses, advisories, bans
         run: cargo deny check
 
-  # ── Тесты: чистая логика (без hardware) ───────────────────────────────────
+  # Тесты: чистая логика (без hardware)
   test-core:
     name: Tests — core crates
     runs-on: ubuntu-latest
@@ -69,7 +69,7 @@ jobs:
       - name: Test glos-replayer
         run: cargo nextest run -p glos-replayer --no-tests=pass
 
-  # ── Тесты: recorder в sim-режиме (без железа) ────────────────────────────
+  # Тесты: recorder в sim-режиме (без железа)
   test-recorder-sim:
     name: Tests — recorder (sim mode)
     runs-on: ubuntu-latest
@@ -81,7 +81,7 @@ jobs:
         env:
           GLOS_DEVICE: sim
 
-  # ── Компиляция с hardware features (без запуска тестов) ──────────────────
+  # Компиляция с hardware features (без запуска тестов)
   check-hardware-features:
     name: Check — hardware features compile
     runs-on: ubuntu-latest
@@ -99,7 +99,7 @@ jobs:
       - name: cargo check — full workspace all features
         run: cargo check --workspace --all-features
 
-  # ── Бенчмарки: только компиляция, не запуск ───────────────────────────────
+  # Бенчмарки: только компиляция, не запуск
   benches-compile:
     name: Benches — compile check
     runs-on: ubuntu-latest
