@@ -1,7 +1,7 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, sync::Arc};
 
 use glos_types::IqFormat;
-use rustfft::{num_complex::Complex32, FftPlanner};
+use rustfft::{num_complex::Complex32, Fft, FftPlanner};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowFunction {
@@ -31,7 +31,7 @@ pub struct PowerSpectrum {
 /// Основной процессор FFT + sliding average.
 pub struct SpectrumProcessor {
     config: SpectrumConfig,
-    planner: FftPlanner<f32>,
+    fft: Arc<dyn Fft<f32>>,
     window_coeff: Vec<f32>,
     power_norm: f32,
     avg_acc: Vec<f32>,
@@ -94,10 +94,12 @@ impl SpectrumProcessor {
         let window_coeff = config.window.coefficients(config.fft_size);
         let power_norm = config.window.power_norm(config.fft_size);
         let avg_acc = vec![0.0f32; config.fft_size];
+        let mut planner = FftPlanner::new();
+        let fft = planner.plan_fft_forward(config.fft_size);
 
         Self {
             config,
-            planner: FftPlanner::new(),
+            fft,
             window_coeff,
             power_norm,
             avg_acc,
@@ -116,19 +118,20 @@ impl SpectrumProcessor {
             return None;
         }
 
-        let fft = self.planner.plan_fft_forward(n);
         let mut last_spectrum: Option<Vec<f32>> = None;
+        let step = (n / 2).max(1);
 
         // Обрабатываем все поля окна в блоке
-        for window_start in (0..=samples.len() - n).step_by(n / 2) {
+        for window_start in (0..=samples.len() - n).step_by(step) {
             let window_samples = &samples[window_start..window_start + n];
+
             let mut buf: Vec<Complex32> = window_samples
                 .iter()
                 .zip(self.window_coeff.iter())
                 .map(|(s, &w)| Complex32::new(s.re * w, s.im * w))
                 .collect();
 
-            fft.process(&mut buf);
+            self.fft.process(&mut buf);
 
             // fftshift: вторая половина идёт в начало
             let mut shifted = Vec::with_capacity(n);
@@ -140,7 +143,7 @@ impl SpectrumProcessor {
             let power: Vec<f32> = shifted
                 .iter()
                 .map(|c| {
-                    let mag_sq = c.norm_sqr() / (self.power_norm * n as f32);
+                    let mag_sq = c.norm_sqr() / self.power_norm;
                     10.0 * (mag_sq.max(1e-12)).log10()
                 })
                 .collect();
@@ -171,17 +174,26 @@ impl SpectrumProcessor {
             timestamp_ns,
         })
     }
+
+    pub fn reset(&mut self) {
+        self.avg_acc.fill(0.0);
+        self.avg_filled = 0;
+    }
+
+    pub fn config(&self) -> &SpectrumConfig {
+        &self.config
+    }
 }
 
 /// Декодирует сырые байты IQ в вектор комплексных f32 выборок.
-pub fn decode_id(
+pub fn decode_iq(
     data: &[u8],
     format: IqFormat,
 ) -> Vec<Complex32> {
     match format {
         IqFormat::Int8 => data
             .chunks_exact(2)
-            .map(|c| Complex32::new(c[0] as i8 as f32 / 127.0, c[1] as i8 as f32 / 127.0))
+            .map(|c| Complex32::new(c[0] as i8 as f32 / 128.0, c[1] as i8 as f32 / 128.0))
             .collect(),
         IqFormat::Int16 => data
             .chunks_exact(4)
@@ -212,7 +224,7 @@ impl Default for SpectrumConfig {
             avg_count: 8,
             waterfall_rows: 50,
             sample_rate_hz: 2_000_000,
-            center_freq_hz: 16_020_000_000,
+            center_freq_hz: 1_602_000_000,
         }
     }
 }
@@ -248,7 +260,7 @@ mod tests {
     use glos_types::IqFormat;
     use rustfft::num_complex::Complex32;
 
-    use crate::{decode_id, PowerSpectrum, SpectrumConfig, SpectrumProcessor, WindowFunction};
+    use crate::{decode_iq, PowerSpectrum, SpectrumConfig, SpectrumProcessor, WindowFunction};
 
     #[test]
     fn test_window_coefficients_hann_endpoint() {
@@ -290,7 +302,7 @@ mod tests {
     #[test]
     fn test_decode_iq_int8() {
         let data = vec![127i8 as u8, 0u8, 0u8, 127i8 as u8];
-        let decoded = decode_id(&data, IqFormat::Int8);
+        let decoded = decode_iq(&data, IqFormat::Int8);
 
         assert_eq!(decoded.len(), 2);
         assert!(decoded[0].re > 0.99);
@@ -319,7 +331,7 @@ mod tests {
         }
 
         // Декодируем
-        let decoded = decode_id(&data, IqFormat::Int16);
+        let decoded = decode_iq(&data, IqFormat::Int16);
 
         assert_eq!(decoded.len(), samples.len());
 
@@ -345,7 +357,7 @@ mod tests {
             data.extend_from_slice(&s.im.to_be_bytes());
         }
 
-        let decoded = decode_id(&data, IqFormat::Float32);
+        let decoded = decode_iq(&data, IqFormat::Float32);
 
         assert_eq!(decoded.len(), samples.len());
 
@@ -374,7 +386,7 @@ mod tests {
             data.extend_from_slice(&q.to_be_bytes());
         }
 
-        let decoded = decode_id(&data, IqFormat::Int16);
+        let decoded = decode_iq(&data, IqFormat::Int16);
 
         assert_eq!(decoded.len(), 3);
         assert!((decoded[0].re - 1.0).abs() < 1e-4, "I[0] ≈ 1.0");
@@ -383,22 +395,17 @@ mod tests {
 
     #[test]
     fn test_decode_iq_int8_extremes() {
-        let data = vec![
-            127i8 as u8,
-            127i8 as u8, // max
-            (-128i8) as u8,
-            (-128i8) as u8, // min
-        ];
+        let data = vec![127i8 as u8, 127i8 as u8, (-128i8) as u8, (-128i8) as u8];
 
-        let decoded = decode_id(&data, IqFormat::Int8);
+        let decoded = decode_iq(&data, IqFormat::Int8);
 
         // max
-        assert!((decoded[0].re - 1.0).abs() < 1e-6);
-        assert!((decoded[0].im - 1.0).abs() < 1e-6);
+        assert!(decoded[0].re > 0.99);
+        assert!(decoded[0].im > 0.99);
 
-        // min (будет приблизительно = 1.0078 из-за / 127.0)
-        assert!(decoded[1].re < -1.0);
-        assert!(decoded[1].im < -1.0);
+        // min
+        assert!(decoded[1].re <= -1.0);
+        assert!(decoded[1].im <= -1.0);
     }
 
     #[test]
@@ -413,7 +420,7 @@ mod tests {
         data.extend_from_slice(&min.to_be_bytes());
         data.extend_from_slice(&min.to_be_bytes());
 
-        let decoded = decode_id(&data, IqFormat::Int16);
+        let decoded = decode_iq(&data, IqFormat::Int16);
 
         assert_eq!(decoded.len(), 2);
         assert!((decoded[0].re - 1.0).abs() < 1e-6);
@@ -424,7 +431,7 @@ mod tests {
     fn test_decode_iq_ignores_trailing_bytes() {
         let data = vec![127i8 as u8, 0u8, 1u8];
 
-        let decoded = decode_id(&data, IqFormat::Int8);
+        let decoded = decode_iq(&data, IqFormat::Int8);
 
         // Должна жекодироваться только одна пара
         assert_eq!(decoded.len(), 1);
