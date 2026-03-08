@@ -48,7 +48,9 @@ glos
 │   │   ├── roadmap.md
 │   │   └── project_structure.md
 │   ├── src
-│   │   └── lib.rs
+│   │   ├── lib.rs
+│   │   ├── main.rs
+│   │   └── spectrum.rs
 │   ├── .gitignore
 │   ├── Cargo.toml
 │   ├── LICENSE
