@@ -29,23 +29,32 @@ jobs:
       - run: cargo check -p glos-hal --features hackrf
       - run: cargo check -p glos-recorder --features hackrf
 
-  check-rtlsdr:
-    name: Check — RTL-SDR
+  check-pluto:
+    name: Check — PlutoSDR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
       - uses: ./.github/actions/install-sdr-deps
-      - run: cargo check -p glos-hal --features rtlsdr
+      - run: cargo check -p glos-hal --features pluto
 
-  check-soapysdr:
-    name: Check — SoapySDR
+  check-usrp:
+    name: Check — USRP
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
       - uses: ./.github/actions/install-sdr-deps
-      - run: cargo check -p glos-hal --features soapysdr
+      - run: cargo check -p glos-hal --features usrp
+
+  check-lime:
+    name: Check — LimeSDR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/install-sdr-deps
+      - run: cargo check -p glos-hal --features lime
 
   check-all-features:
     name: Check — all hardware features combined
@@ -56,5 +65,5 @@ jobs:
       - uses: ./.github/actions/install-sdr-deps
       - name: cargo check workspace all features
         run: cargo check --workspace --all-features
-      - name: Ensure no clippy warnings with all features
+      - name: Clippy with all features
         run: cargo clippy --workspace --all-features -- -D warnings
