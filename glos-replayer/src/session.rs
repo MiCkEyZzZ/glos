@@ -72,7 +72,7 @@ impl ReplaySession {
         let mut loop_count = 0u64;
 
         'outer: loop {
-            if stop.load(Ordering::Relaxed) {
+            if stop.load(Ordering::Acquire) {
                 break;
             }
 
@@ -87,7 +87,7 @@ impl ReplaySession {
             reader = GlosReader::new(file)?;
 
             while let Some(result) = reader.next_block() {
-                if stop.load(Ordering::Relaxed) {
+                if stop.load(Ordering::Acquire) {
                     break 'outer;
                 }
 
@@ -304,12 +304,12 @@ mod tests {
         let listener = UdpSocket::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap().to_string();
 
-        // Большой файл — много блоков
-        let tmp = make_glos_file(100, 1000);
+        let total_blocks = 10_000;
+        let tmp = make_glos_file(total_blocks, 1000);
         let config = ReplayConfig {
             input_path: tmp.path().to_path_buf(),
             target_addr: addr.parse().unwrap(),
-            speed: 100.0,
+            speed: 10.0,
             loop_playback: false,
             stats_interval_secs: 60,
             bind_addr: "0.0.0.0:0".parse().unwrap(),
@@ -321,21 +321,20 @@ mod tests {
 
         // Останавливаем после первых нескольких пакетов
         let stop_clone = stop.clone();
-        let m_clone = metrics.clone();
+
         std::thread::spawn(move || {
-            // Ждём пока придёт хотя бы 2 пакета
-            while m_clone.packets_sent.load(Ordering::Relaxed) < 2 {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-            stop_clone.store(true, Ordering::Relaxed);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            stop_clone.store(true, Ordering::SeqCst);
         });
 
         session.run().unwrap();
 
+        let sent = metrics.packets_sent.load(Ordering::Relaxed);
+
         // Остановились раньше конца файла (< 100 пакетов)
         assert!(
-            metrics.packets_sent.load(Ordering::Relaxed) < 100,
-            "stop_flag должен прервать воспроизведение до конца файла"
+            sent < total_blocks,
+            "stop_flag should stop playback before the end of the file"
         );
     }
 
