@@ -38,6 +38,19 @@ pub struct SpectrumProcessor {
     avg_filled: usize,
 }
 
+/// Кольцевой буфер истории спектра (2D: rows * fft_bins).
+pub struct WaterfallBuffer {
+    rows: usize,
+    cols: usize,
+    data: Vec<Vec<f32>>,
+    head: usize,
+    filled: usize,
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Собственные методы
+////////////////////////////////////////////////////////////////////////////////
+
 impl WindowFunction {
     /// Генерирует коэффициенты оконной ф-ии длиной `n`.
     pub fn coefficients(
@@ -185,6 +198,61 @@ impl SpectrumProcessor {
     }
 }
 
+impl WaterfallBuffer {
+    pub fn new(
+        rows: usize,
+        cols: usize,
+    ) -> Self {
+        Self {
+            rows,
+            cols,
+            data: vec![vec![f32::NEG_INFINITY; cols]; rows],
+            head: 0,
+            filled: 0,
+        }
+    }
+
+    /// Добавляет новую строку спектра.
+    pub fn push(
+        &mut self,
+        spectrum: &[f32],
+    ) {
+        let n = self.cols.min(spectrum.len());
+
+        self.data[self.head][..n].copy_from_slice(&spectrum[..n]);
+        self.head = (self.head + 1) % self.rows;
+
+        if self.filled < self.rows {
+            self.filled += 1;
+        }
+    }
+
+    /// Вовзращает все строки в хронологическом порядке (старые первые)
+    pub fn rows_ordered(&self) -> Vec<&[f32]> {
+        let mut result = Vec::with_capacity(self.filled);
+        let start = if self.filled < self.rows {
+            0
+        } else {
+            self.head
+        };
+
+        for i in 0..self.filled {
+            let idx = (start + i) % self.rows;
+            result.push(self.data[idx].as_slice());
+        }
+
+        result
+    }
+
+    pub fn filled_rows(&self) -> usize {
+        self.filled
+    }
+
+    pub fn cols(&self) -> usize {
+        self.cols
+    }
+}
+
 /// Декодирует сырые байты IQ в вектор комплексных f32 выборок.
 pub fn decode_iq(
     data: &[u8],
@@ -215,6 +283,10 @@ pub fn decode_iq(
             .collect(),
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Общие реализации трейтов для SpectrumConfig, WindowFunction
+////////////////////////////////////////////////////////////////////////////////
 
 impl Default for SpectrumConfig {
     fn default() -> Self {
@@ -254,6 +326,10 @@ impl std::fmt::Display for WindowFunction {
         }
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Тесты
+////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
