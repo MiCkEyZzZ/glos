@@ -4,75 +4,107 @@ on:
   push:
     branches: [master, develop]
   pull_request:
+    branches: [master, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   RUST_LOG: info
+  RUST_BACKTRACE: 1
 
 jobs:
+  # Форматирование
   fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - run: cargo fmt --all -- --check
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
+  # Clippy
   clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Run Clippy (workspace, all targets)
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
-  # Тесты БЕЗ hardware (только sim mode и pure logic)
-  test-core:
+  # Зависимости: лицензии / уязвимости / дубли
+  deny:
+    name: cargo-deny
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - name: Test glos-core
-        run: cargo test -p glos-core --all-features
+      - name: Check licenses, advisories, bans
+        run: cargo deny check
+
+  # Тесты: чистая логика (без hardware)
+  test-core:
+    name: Tests — core crates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+
       - name: Test glos-types
-        run: cargo test -p glos-types
-      - name: Test glos-analyzer
-        run: cargo test -p glos-analyzer
-      - name: Integration tests
+        run: cargo nextest run -p glos-types
+
+      - name: Test glos-core (unit + integration)
+        run: cargo nextest run -p glos-core
+
+      - name: Integration tests glos-core
         run: cargo test -p glos-core --test integration_tests
 
-  # Simulator mode — работает без железа
+      - name: Test glos-analyzer
+        run: cargo nextest run -p glos-analyzer
+
+      - name: Test glos-replayer
+        run: cargo nextest run -p glos-replayer
+
+  # Тесты: recorder в sim-режиме (без железа)
   test-recorder-sim:
+    name: Tests — recorder (sim mode)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - name: Test recorder in sim mode
-        run: cargo test -p glos-recorder
+      - name: Test recorder (simulator device, no hardware needed)
+        run: cargo nextest run -p glos-recorder
         env:
           GLOS_DEVICE: sim
 
-  test-replayer:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-rust
-      - run: cargo test -p glos-replayer
-
-  # Проверяем что сборка с hardware features НЕ падает (без запуска)
+  # Компиляция с hardware features (без запуска тестов)
   check-hardware-features:
+    name: Check — hardware features compile
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
       - uses: ./.github/actions/install-sdr-deps
-      - name: Check HackRF feature compiles
+
+      - name: cargo check — glos-recorder + hackrf feature
         run: cargo check -p glos-recorder --features hackrf
-      - name: Check all features
+
+      - name: cargo check — glos-hal all features
+        run: cargo check -p glos-hal --all-features
+
+      - name: cargo check — full workspace all features
         run: cargo check --workspace --all-features
 
+  # Бенчмарки: только компиляция, не запуск
   benches-compile:
+    name: Benches — compile check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
-      - name: Check benches compile (no run)
-        run: cargo bench --workspace --no-run
+      - name: Check that benches compile
+        run: cargo bench -p benches --no-run

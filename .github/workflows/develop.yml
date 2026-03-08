@@ -1,0 +1,42 @@
+name: Develop
+
+# Быстрая проверка для feature-веток.
+# Только cargo check + fmt — без запуска тестов, чтобы не тратить runner-минуты
+# на каждый промежуточный push.
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "fix/**"
+      - "refactor/**"
+      - "chore/**"
+      - "docs/**"
+    # Не запускать если изменены только документы/markdown
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "*.md"
+
+concurrency:
+  group: develop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quick-check:
+    name: Quick check (fmt + check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: cargo check workspace (default features)
+        run: cargo check --workspace
+
+      - name: cargo check workspace (no default features)
+        run: cargo check --workspace --no-default-features

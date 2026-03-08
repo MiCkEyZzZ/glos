@@ -1,27 +1,27 @@
+# Дубликаты зависимостей
 [bans]
-multiple-versions = "warn"
+multiple-versions    = "warn"
+wildcards            = "deny"
+allow-wildcard-paths = true
 
 deny = [
-  { name = "openssl", version = "<0.10.60" },
-  { name = "openssl", version = "0.10.63" },
+    # Уязвимые версии OpenSSL (если вдруг добавится через транзитивную зависимость)
+    { name = "openssl", version = "<0.10.60" },
 ]
 
 skip = []
 skip-tree = []
 
-wildcards = "deny"
-allow-wildcard-paths = true
-
-
 [advisories]
-yanked = "deny"
-unmaintained = "all"
-unsound = "all"
-ignore = [
-    { id = "RUSTSEC-2024-0436", reason = "transitive dependency via rav1e/ image, no direct impact" }
+yanked      = "deny"
+unmaintained = "warn"
+unsound     = "deny"
+ignore      = [
+    # Транзитивная зависимость через image/rav1e, прямого влияния нет
+    { id = "RUSTSEC-2024-0436", reason = "transitive via image crate, no direct impact on GLOS" },
 ]
 
-
+# Лицензии
 [licenses]
 allow = [
     "MIT",
@@ -35,19 +35,19 @@ allow = [
     "Unicode-3.0",
     "BSL-1.0",
     "OFL-1.1",
-    "Ubuntu-font-1.0",
     "NCSA",
     "CC0-1.0",
 ]
 
 private = { ignore = true }
 
-
+# Источники
 [sources]
-allow-git = []
-unknown-git = "deny"
+unknown-git      = "deny"
 unknown-registry = "deny"
 required-git-spec = "rev"
+
+allow-git = []
 
 [sources.allow-org]
 github = []

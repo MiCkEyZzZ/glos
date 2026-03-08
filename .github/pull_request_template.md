@@ -2,7 +2,8 @@
 
 Please include:
 
-- **Scope**: what area of the codebase this touches (e.g. `glos-core`, `glos-replayer`, `glos-analyzer`, `glos-ui`).
+- **Scope**: what area of the codebase this touches (e.g. `glos-core`, `glos-replayer`,
+  `glos-analyzer`, `glos-ui`).
 - **Summary**: brief description of the change.
 - **Testing**: how did you verify it works? (unit tests, manual steps).
 - **Checklist**:

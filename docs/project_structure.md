@@ -1,6 +1,6 @@
 # Схема проекта Glos
 
-```
+```text
 glos
 ├── .cargo
 │   └── config.toml
@@ -8,6 +8,11 @@ glos
 │   ├── config.toml
 │   └── nextest.toml
 ├── .github
+│   ├── actions
+│   │   ├── install-sdr-deps
+│   │   │   └── action.yml
+│   │   └── setup-rust
+│   │       └── action.yml
 │   ├── ISSUE_TEMPLATE
 │   │   ├── dependency-check.yml
 │   │   ├── config.yml
@@ -17,9 +22,9 @@ glos
 │   │   ├── other_stuff.yml
 │   │   └── question.yml
 │   ├── workflows
-│   │   ├── dependency-check.yml
-│   │   ├── dev-build.yml
-│   │   ├── property-tests.yml
+│   │   ├── ci.yml
+│   │   ├── develop.yml
+│   │   ├── hardware-optional.yml
 │   │   ├── release.yml
 │   │   └── semantic-pull-request.yml
 │   ├── cargo-blacklist.txt
