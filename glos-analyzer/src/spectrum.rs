@@ -336,7 +336,10 @@ mod tests {
     use glos_types::IqFormat;
     use rustfft::num_complex::Complex32;
 
-    use crate::{decode_iq, PowerSpectrum, SpectrumConfig, SpectrumProcessor, WindowFunction};
+    use crate::{
+        decode_iq, PowerSpectrum, SpectrumConfig, SpectrumProcessor, WaterfallBuffer,
+        WindowFunction,
+    };
 
     #[test]
     fn test_window_coefficients_hann_endpoint() {
@@ -755,5 +758,105 @@ mod tests {
         let res = proc.process_block(&samples, 0);
 
         assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_waterfall_init() {
+        let wf = WaterfallBuffer::new(5, 8);
+
+        assert_eq!(wf.filled_rows(), 0);
+        assert_eq!(wf.cols(), 8);
+    }
+
+    #[test]
+    fn test_waterfall_push_single() {
+        let mut wf = WaterfallBuffer::new(3, 4);
+
+        wf.push(&[1.0, 2.0, 3.0, 4.0]);
+
+        assert_eq!(wf.filled_rows(), 1);
+
+        let rows = wf.rows_ordered();
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0], &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn test_waterfall_multiple_rows() {
+        let mut wf = crate::WaterfallBuffer::new(5, 3);
+
+        wf.push(&[1.0, 1.0, 1.0]);
+        wf.push(&[2.0, 2.0, 2.0]);
+        wf.push(&[3.0, 3.0, 3.0]);
+
+        let rows = wf.rows_ordered();
+
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0], &[1.0, 1.0, 1.0]);
+        assert_eq!(rows[1], &[2.0, 2.0, 2.0]);
+        assert_eq!(rows[2], &[3.0, 3.0, 3.0]);
+    }
+
+    #[test]
+    fn test_waterfall_ring_overwrite() {
+        let mut wf = crate::WaterfallBuffer::new(3, 2);
+
+        wf.push(&[1.0, 1.0]);
+        wf.push(&[2.0, 2.0]);
+        wf.push(&[3.0, 3.0]);
+        wf.push(&[4.0, 4.0]); // перезапишет первую строку
+
+        let rows = wf.rows_ordered();
+
+        assert_eq!(rows.len(), 3);
+
+        assert_eq!(rows[0], &[2.0, 2.0]);
+        assert_eq!(rows[1], &[3.0, 3.0]);
+        assert_eq!(rows[2], &[4.0, 4.0]);
+    }
+
+    #[test]
+    fn test_waterfall_truncate_input() {
+        let mut wf = crate::WaterfallBuffer::new(2, 3);
+
+        wf.push(&[1.0, 2.0, 3.0, 4.0, 5.0]);
+
+        let rows = wf.rows_ordered();
+
+        assert_eq!(rows[0], &[1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn test_waterfall_partial_fill() {
+        let mut wf = crate::WaterfallBuffer::new(5, 2);
+
+        wf.push(&[1.0, 1.0]);
+        wf.push(&[2.0, 2.0]);
+
+        assert_eq!(wf.filled_rows(), 2);
+
+        let rows = wf.rows_ordered();
+
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn test_waterfall_order_after_wrap() {
+        let mut wf = crate::WaterfallBuffer::new(3, 1);
+
+        wf.push(&[1.0]);
+        wf.push(&[2.0]);
+        wf.push(&[3.0]);
+        wf.push(&[4.0]);
+        wf.push(&[5.0]);
+
+        let rows = wf.rows_ordered();
+
+        assert_eq!(rows.len(), 3);
+
+        assert_eq!(rows[0], &[3.0]);
+        assert_eq!(rows[1], &[4.0]);
+        assert_eq!(rows[2], &[5.0]);
     }
 }
