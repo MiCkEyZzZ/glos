@@ -4,12 +4,19 @@ description: Installs the Rust toolchain from rust-toolchain.toml, nextest, and 
 runs:
   using: composite
   steps:
-    # Toolchain читается из rust-toolchain.toml в корне репозитория.
-    # components rustfmt/clippy уже прописаны в rust-toolchain.toml,
-    # здесь дублируем для явности.
+    # Читаем channel прямо из rust-toolchain.toml — единственный источник правды
+    - name: Read toolchain channel from rust-toolchain.toml
+      id: toolchain
+      shell: bash
+      run: |
+        CHANNEL=$(grep '^channel' rust-toolchain.toml | sed 's/channel *= *"\(.*\)"/\1/')
+        echo "Detected toolchain: $CHANNEL"
+        echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: ${{ steps.toolchain.outputs.channel }}
         components: rustfmt, clippy
 
     # Кэш .cargo/registry, .cargo/git и target/
