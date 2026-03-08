@@ -6,8 +6,8 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -qq
-                sudo apt-get install -y \
-                  libhackrf-dev \
-                  librtlsdr-dev \
-                  libsoapysdr-dev \
-                  pkg-config
+        sudo apt-get install -y \
+          libhackrf-dev \
+          librtlsdr-dev \
+          libsoapysdr-dev \
+          pkg-config
