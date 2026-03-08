@@ -1,0 +1,13 @@
+name: Install SDR dependencies
+runs:
+  using: composite
+  steps:
+    - name: Install SDR system libs
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+                sudo apt-get install -y \
+                  libhackrf-dev \
+                  librtlsdr-dev \
+                  libsoapysdr-dev \
+                  pkg-config

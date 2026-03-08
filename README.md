@@ -95,11 +95,11 @@ Typical use cases include:
 - Optional GUI visualisation (egui / Tauri backends).
 - Integration points for telemetry and integrity analysis pipelines.
 
-## Architecture (high level)
+## Architecture
 
 Simple conceptual flow:
 
-```
+```text
 [ SDR / GNSS Receiver ]
         ↓
 [ glos-recorder ] ──►     session.glos  (IQ + metadata)
@@ -123,7 +123,7 @@ Core components are split into reusable crates:
 
 ## Repository layout
 
-```
+```text
 glos
 ├── glos-analyzer
 ├── glos-cli
@@ -300,7 +300,7 @@ cargo run -p glos-recorder --release -- \
 
 ## Replayer Usage
 
-See [link](./docs/QUICK_START.md)
+See [GLOS Replayer — Quick Test Guide](./docs/QUICK_START.md)
 
 ### HackRF One recording
 
@@ -355,7 +355,7 @@ Future companion projects:
 
 Planned workflow:
 
-```
+```text
 GLOS (signal capture)
           ↓
 GLINT (analysis & detection)

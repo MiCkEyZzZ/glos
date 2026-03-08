@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: info
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo fmt --all -- --check
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+# Тесты БЕЗ hardware (только sim mode и pure logic)
+test-core:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: ./.github/actions/setup-rust
+    - name: Test glos-core
+      run: cargo test -p glos-core --all-features
+    - name: Test glos-types
+      run: cargo test -p glos-types
+    - name: Test glos-analyzer
+      run: cargo test -p glos-analyzer
+    - name: Test glos-cli
+      run: cargo test -p glos-cli
+    - name: Test glos-hal
+      run: cargo test -p glos-hal
+    - name: Test glos-ui
+      run: cargo test -p glos-ui
+    - name: Integration tests
+      run: cargo test -p glos-core --test integration_tests
+
+  # Simulator mode — работает без железа
+  test-recorder-sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - name: Test recorder in sim mode
+        run: cargo test -p glos-recorder
+        env:
+          GLOS_DEVICE: sim
+
+  test-replayer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - run: cargo test -p glos-replayer
+
+  # Проверяем что сборка с hardware features НЕ падает (без запуска)
+  check-hardware-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/install-sdr-deps
+      - name: Check HackRF feature compiles
+        run: cargo check -p glos-recorder --features hackrf
+      - name: Check all features
+        run: cargo check --workspace --all-features
+
+  benches-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - name: Check benches compile (no run)
+        run: cargo bench --workspace --no-run
