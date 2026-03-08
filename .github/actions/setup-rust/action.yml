@@ -1,13 +1,39 @@
-name: Setup Rust
+name: Setup Rust toolchain
+description: Installs the Rust toolchain from rust-toolchain.toml, nextest, and cargo-deny, and configures the cache.
+
 runs:
   using: composite
   steps:
+    # Читаем channel прямо из rust-toolchain.toml — единственный источник правды
+    - name: Read toolchain channel from rust-toolchain.toml
+      id: toolchain
+      shell: bash
+      run: |
+        CHANNEL=$(grep '^channel' rust-toolchain.toml | sed 's/channel *= *"\(.*\)"/\1/')
+        echo "Detected toolchain: $CHANNEL"
+        echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: ${{ steps.toolchain.outputs.channel }}
         components: rustfmt, clippy
 
-    - name: Cache cargo
+    # Кэш .cargo/registry, .cargo/git и target/
+    - name: Cache Cargo registry and build artifacts
       uses: Swatinem/rust-cache@v2
       with:
         shared-key: "glos-workspace"
+        cache-on-failure: true
+
+    # cargo-nextest — быстрый test runner (используется в ci.yml и алиасе glos-test)
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: nextest
+
+    # cargo-deny — проверка лицензий, уязвимостей, дублей зависимостей
+    - name: Install cargo-deny
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-deny

@@ -1,55 +1,36 @@
-// Что делает этот конфиг:
-// - Следит за зависимостями Rust во всех crates workspace.
-// - Автоматически обновляет Cargo.lock раз в неделю (по выходным).
-// - Создаёт PR с меткой dependencies, чтобы не пропустить обновления.
-// - Обновляет патчи и минорные версии (patch и minor) для всех crates.
-// - Игнорирует специфичные crates, которые чаще всего меняются вручную
-//   или не зависят от внешних пакетов (glos-ui, glos-cli, benches).
-// - Поддержка мульти-crate workspace, включая glos-core, glos-recorder,
-//   glos-replayer, glos-analyzer, glos-types.
-
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
-  "prConcurrentLimit": 10,
-  "prHourlyLimit": 50,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 10,
   "labels": ["dependencies"],
-
   "lockFileMaintenance": {
     "enabled": true,
     "recreateWhen": "always",
-    "branchTopic": "Cargo.lock update",
+    "branchTopic": "cargo-lock-update",
     "commitMessageAction": "Update Cargo.lock"
   },
-
   "packageRules": [
     {
       "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "description": "Автомерж патч-обновлений Rust зависимостей"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "description": "Минорные и мажорные обновления требуют ревью"
+    },
+    {
+      "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["patch", "minor"],
-      "enabled": true,
-      "description": "Обновление Rust зависимостей и Cargo.lock"
+      "automerge": true,
+      "description": "Автомерж патч-обновлений GitHub Actions"
     }
   ],
-
   "schedule": ["every weekend"],
-
-  "ignoreDeps": ["glos-ui", "glos-cli", "benches"],
-
-  "customManagers": [
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/^glos-core/Cargo.toml$/",
-        "/^glos-recorder/Cargo.toml$/",
-        "/^glos-replayer/Cargo.toml$/",
-        "/^glos-analyzer/Cargo.toml$/",
-        "/^glos-types/Cargo.toml$/"
-      ],
-      "matchStrings": ["(?<depName>[^\\s=]+)\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
-      "currentValueTemplate": "{{currentValue}}",
-      "depNameTemplate": "{{depName}}",
-      "datasourceTemplate": "crates.io"
-    }
-  ]
+  "ignoreDeps": []
 }

@@ -1,13 +1,20 @@
-name: Install SDR dependencies
+name: Install SDR system dependencies
+description: "Installs system SDR libraries (HackRF, RTL-SDR, SoapySDR, pkg-config)"
+
 runs:
   using: composite
   steps:
-    - name: Install SDR system libs
+    - name: Install SDR system libraries
       shell: bash
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y \
+        sudo apt-get install -y --no-install-recommends \
           libhackrf-dev \
           librtlsdr-dev \
           libsoapysdr-dev \
-          pkg-config
+          soapysdr-tools \
+          pkg-config \
+          libudev-dev \
+          libusb-1.0-0-dev
+        echo "SDR deps installed:"
+        dpkg -l libhackrf-dev librtlsdr-dev libsoapysdr-dev | tail -n +5 | awk '{print $2, $3}'

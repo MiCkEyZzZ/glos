@@ -1,0 +1,60 @@
+name: Hardware Features (optional)
+
+# Проверяет что весь код с hardware feature flags компилируется.
+# Тесты НЕ запускаются — реального железа в CI нет.
+# Запускается вручную или при изменениях в glos-hal / glos-recorder.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "glos-hal/**"
+      - "glos-recorder/**"
+      - ".github/workflows/hardware-optional.yml"
+
+concurrency:
+  group: hardware-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-hackrf:
+    name: Check — HackRF One
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/install-sdr-deps
+      - run: cargo check -p glos-hal --features hackrf
+      - run: cargo check -p glos-recorder --features hackrf
+
+  check-rtlsdr:
+    name: Check — RTL-SDR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/install-sdr-deps
+      - run: cargo check -p glos-hal --features rtlsdr
+
+  check-soapysdr:
+    name: Check — SoapySDR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/install-sdr-deps
+      - run: cargo check -p glos-hal --features soapysdr
+
+  check-all-features:
+    name: Check — all hardware features combined
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/install-sdr-deps
+      - name: cargo check workspace all features
+        run: cargo check --workspace --all-features
+      - name: Ensure no clippy warnings with all features
+        run: cargo clippy --workspace --all-features -- -D warnings

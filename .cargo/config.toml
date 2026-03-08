@@ -22,31 +22,9 @@ linker = "x86_64-linux-musl-gcc"
 # Настройки для алиасов — полезно, если часто используешь
 # команды с флагами
 [alias]
-sqlness = "run --bin sqlness-runner --"
-
-# Оптимизация git-зависимостей, если активно работаешь с
-# зависимостями через Git
-[unstable.git]
-shallow_index = true
-shallow_deps = true
-
-# Настройки для работы с Gitoxide (если проект использует
-# Git внутри)
-[unstable.gitoxide]
-fetch = true
-checkout = true
-list_files = true
-internal_use_git2 = false
-
-# Настройки для профилирования или кросс-компиляции
-# (опционально)
-[profile.dev]
-opt-level = 2          # Уровень оптимизаций для разработки
-debug = true
-overflow-checks = true
-
-[profile.release]
-opt-level = 3       # Высокий уровень оптимизаций для релиза
-lto = true          # Включение Link-Time Optimization для улучшения производительности
-codegen-units = 1   # Медленнее компиляция, но лучше оптимизация
-strip = "debuginfo" # Убираем debug-символы (меньше размер бинаря)
+glos-check = "check --workspace --all-features"
+glos-test  = "nextest run --workspace"
+glos-lint  = "clippy --workspace --all-targets -- -D warnings"
+glos-fmt   = "fmt --all -- --check"
+glos-deny  = "deny check"
+glos-bench = "bench -p benches"
