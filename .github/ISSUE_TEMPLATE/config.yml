@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Glos Community Pachca
+  - name: GLOS Community Chat (Pachca)
     url: https://app.pachca.com/join?invite_token=EakW3nIgma_ezqFc&company_name=Glos+Community&company_id=416542
-    about: Get free help from the Glos community
-  - name: Glos Community Discussion
+    about: Get help from the GLOS community
+  - name: GLOS Discussions (GitHub)
     url: https://github.com/MiCkEyZzZ/glos/discussions
-    about: Get free help from the Glos community
+    about: Ask questions and share ideas

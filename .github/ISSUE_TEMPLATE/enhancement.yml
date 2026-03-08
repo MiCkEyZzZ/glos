@@ -1,32 +1,68 @@
 name: Enhancement
-description: Suggest an enhancement to existing functionality
+description: Suggest an improvement to existing GLOS functionality
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose an improvement to something that **already exists** in GLOS.
+        For completely new functionality, use the **New Feature** template instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component does this affect?
+      multiple: true
+      options:
+        - glos-core (file format / IQ handling)
+        - glos-recorder
+        - glos-replayer
+        - glos-analyzer (FFT / waterfall / DSP)
+        - glos-hal (hardware abstraction)
+        - glos-cli
+        - glos-ui
+        - glos-types
+        - .glos file format
+        - CI / tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+
   - type: dropdown
     id: type
     attributes:
-      label: What type of enhancement is this?
+      label: Type of enhancement
       multiple: true
       options:
-        - API improvement
-        - Configuration
-        - Performance
-        - Refactor
-        - Tech debt reduction
-        - User experience
+        - Performance (throughput, latency, memory)
+        - API / interface improvement
+        - DSP / signal quality
+        - Hardware support
+        - File format / serialization
+        - Configuration / ergonomics
+        - Refactor / tech debt
+        - Documentation
         - Other
 
   - type: textarea
-    id: what
+    id: current_behavior
     attributes:
-      label: What does the enhancement do?
-      description: |
-        Give a high-level overview of how you
-        suggest improving an existing feature or functionality.
+      label: Current behavior
+      description: Describe what GLOS currently does and why it is insufficient.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_behavior
+    attributes:
+      label: Proposed improvement
+      description: Describe what the improved behavior should look like.
+    validations:
+      required: true
 
   - type: textarea
     id: implementation
     attributes:
       label: Implementation ideas or challenges
-      description: |
-        Share any ideas of how to implement the enhancement, or what could be difficult.
+      description: Any thoughts on how to implement this, or potential difficulties.

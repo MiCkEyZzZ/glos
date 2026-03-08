@@ -1,41 +1,69 @@
 name: Crash report
-description: Submit a crash report for Glos
+description: Submit a crash / panic report for GLOS
 title: "[CRASH] <short description>"
 labels: ["crash"]
 body:
   - type: markdown
     attributes:
       value: |
-        ⚠️ **Notice!**
-        - If a Glos module or plugin was involved, please open an issue in the module's repo instead!
-        - If you're using Docker on Apple Silicon (M1/M2), make sure the image was compiled for ARM!
+        ⚠️ **Before submitting**
+        - Check that you are on the latest commit of the `master` branch.
+        - If the crash is reproducible with `--device sim`, please confirm that in the report.
+        - For hardware-specific crashes (HackRF, PlutoSDR, etc.) include driver versions.
 
         Please provide as much detail as possible to help us diagnose the crash.
 
-  - type: textarea
-    id: crash_log
+  - type: dropdown
+    id: component
     attributes:
-      label: Crash log
-      description: |
-        Paste the complete crash log here. Please include a few lines from the log preceding the crash for context.
-      placeholder: |
-        ```
-        [Paste your crash log here]
-        ```
+      label: Which component crashed?
+      options:
+        - glos-recorder
+        - glos-replayer
+        - glos-analyzer
+        - glos-hal
+        - glos-cli
+        - glos-ui
+        - Unknown
     validations:
       required: true
 
   - type: textarea
-    id: additional_info
+    id: crash_log
     attributes:
-      label: Additional information
+      label: Crash log / panic output
       description: |
-        1. OS distribution and version
-        2. Steps to reproduce (if any)
-        3. Any other relevant context (hardware, configuration, etc.)
+        Paste the complete output including the panic message and backtrace.
+        Set `RUST_BACKTRACE=1` before running to get a full backtrace.
       placeholder: |
-        1. Ubuntu 22.04
-        2. Run `glos --start`, then execute `SET foo bar`
-        3. Running inside Docker on Apple M1
+        thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: ...', glos-recorder/src/pipeline.rs:42
+        stack backtrace:
+           0: rust_begin_unwind
+           ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command used
+      description: The exact command that triggered the crash.
+      placeholder: |
+        RUST_BACKTRACE=1 cargo run -p glos-recorder --release -- \
+          --device hackrf --freq 1602MHz --rate 2MHz --gain 40 \
+          --output signal.glos --duration 60
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        OS: Ubuntu 24.04
+        Rust: nightly-2026-02-14
+        GLOS commit: abc1234
+        SDR device: HackRF One (firmware 2023.01)
+        libhackrf: 2023.01.1
     validations:
       required: true
