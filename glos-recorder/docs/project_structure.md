@@ -1,6 +1,6 @@
-## Структура библиотеки
+# Структура библиотеки
 
-```
+```text
 glos-recorder
 ├── docs
 │   ├── project_structure.md

@@ -1,6 +1,6 @@
-## Структура библиотеки
+# Структура библиотеки
 
-```
+```text
 glos-ui
 ├── docs
 │   ├── project_structure.md

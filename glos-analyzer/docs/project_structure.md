@@ -1,6 +1,6 @@
-## Структура библиотеки Glos Analyzer
+# Структура библиотеки Glos Analyzer
 
-```
+```text
 glos-analyzer
 ├── docs
 │   ├── project_structure.md
