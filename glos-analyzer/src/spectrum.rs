@@ -620,4 +620,64 @@ mod tests {
             assert!(v.is_finite());
         }
     }
+
+    #[test]
+    fn test_reset_clears_accumulator() {
+        let cfg = SpectrumConfig {
+            fft_size: 128,
+            avg_count: 4,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+        let samples = vec![Complex32::new(0.0, 0.0); 128];
+
+        // заполняем аккумулятор
+        proc.process_block(&samples, 0);
+        proc.process_block(&samples, 0);
+
+        assert!(proc.avg_filled > 0);
+
+        proc.reset();
+
+        assert_eq!(proc.avg_filled, 0);
+        assert!(proc.avg_acc.iter().all(|&v| v == 0.0));
+    }
+
+    #[test]
+    fn test_config_accessor() {
+        let cfg = SpectrumConfig {
+            fft_size: 256,
+            avg_count: 3,
+            ..Default::default()
+        };
+
+        let proc = SpectrumProcessor::new(cfg.clone());
+
+        let c = proc.config();
+
+        assert_eq!(c.fft_size, cfg.fft_size);
+        assert_eq!(c.avg_count, cfg.avg_count);
+    }
+
+    #[test]
+    fn test_reset_resets_averaging() {
+        let cfg = SpectrumConfig {
+            fft_size: 128,
+            avg_count: 2,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(cfg);
+
+        let samples = vec![Complex32::new(0.0, 0.0); 128];
+
+        proc.process_block(&samples, 0);
+        proc.reset();
+
+        // после reset первый вызов снова должен вернуть None
+        let res = proc.process_block(&samples, 0);
+
+        assert!(res.is_none());
+    }
 }
