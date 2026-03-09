@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, sync::Arc};
+use std::{cmp::Ordering, f32::consts::PI, sync::Arc};
 
 use glos_types::IqFormat;
 use rustfft::{num_complex::Complex32, Fft, FftPlanner};
@@ -45,6 +45,30 @@ pub struct WaterfallBuffer {
     data: Vec<Vec<f32>>,
     head: usize,
     filled: usize,
+}
+
+/// Обнаруженный пик в спектре.
+#[derive(Debug, Clone)]
+pub struct Peak {
+    pub bin_idx: usize,
+    pub freq_hz: f64,
+    pub power_db: f32,
+    pub snr_db: f32,
+}
+
+/// Метрики спектра.
+#[derive(Debug, Clone)]
+pub struct SpectrumMetrics {
+    pub noise_floor_db: f32,
+    pub peaks: Vec<Peak>,
+    pub peak_snr_db: f32,
+    pub peak_freq_hz: f64,
+}
+
+/// Анализирует спектр: шумовой пол, пики, SNR.
+pub struct PeakDetector {
+    pub min_snr_db: f32,
+    pub min_bin_distance: usize,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -253,6 +277,84 @@ impl WaterfallBuffer {
     }
 }
 
+impl PeakDetector {
+    pub fn new(
+        min_snr_db: f32,
+        min_bin_distance: usize,
+    ) -> Self {
+        Self {
+            min_snr_db,
+            min_bin_distance,
+        }
+    }
+
+    /// Вычисляет метрики для заданного спектра мощности.
+    pub fn analyze(
+        &self,
+        spectrum: &PowerSpectrum,
+        sample_rate_hz: u32,
+        center_freq_hz: u64,
+    ) -> SpectrumMetrics {
+        let power = &spectrum.power_db;
+        let n = power.len();
+
+        // Шумовой пол медиана
+        let noise_floor_db = median(power);
+
+        // Поиск локальных максимумов выше порога
+        let threshold = noise_floor_db + self.min_snr_db;
+        let mut candidates: Vec<(usize, f32)> = Vec::new();
+
+        for i in 1..n - 1 {
+            if power[i] > threshold && power[i] >= power[i - 1] && power[i] >= power[i + 1] {
+                candidates.push((i, power[i]));
+            }
+        }
+
+        // Сортируем по убыванию
+        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // Подавление немаксимальных значений
+        let mut peaks: Vec<Peak> = Vec::new();
+        let bin_width = sample_rate_hz as f64 / n as f64;
+
+        'outer: for (idx, pwr) in &candidates {
+            for exsting in &peaks {
+                if idx.abs_diff(exsting.bin_idx) < self.min_bin_distance {
+                    continue 'outer;
+                }
+            }
+
+            let shifted = *idx as i64 - n as i64 / 2;
+            let freq_hz = center_freq_hz as f64 + shifted as f64 * bin_width;
+            let snr_db = pwr - noise_floor_db;
+
+            peaks.push(Peak {
+                bin_idx: *idx,
+                freq_hz,
+                power_db: *pwr,
+                snr_db,
+            });
+        }
+
+        let (peak_snr_db, peak_freq_hz) = peaks
+            .first()
+            .map(|p| (p.snr_db, p.freq_hz))
+            .unwrap_or((0.0, center_freq_hz as f64));
+
+        SpectrumMetrics {
+            noise_floor_db,
+            peaks,
+            peak_snr_db,
+            peak_freq_hz,
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Публичные функции
+////////////////////////////////////////////////////////////////////////////////
+
 /// Декодирует сырые байты IQ в вектор комплексных f32 выборок.
 pub fn decode_iq(
     data: &[u8],
@@ -285,6 +387,29 @@ pub fn decode_iq(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Внутренние функции
+////////////////////////////////////////////////////////////////////////////////
+
+/// Медиана вектора f32 (не изменяет исходный).
+fn median(v: &[f32]) -> f32 {
+    if v.is_empty() {
+        return 0.0;
+    }
+
+    let mut sorted = v.to_vec();
+
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+
+    let mid = sorted.len() / 2;
+
+    if sorted.len().is_multiple_of(2) {
+        (sorted[mid - 1] + sorted[mid]) / 2.0
+    } else {
+        sorted[mid]
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Общие реализации трейтов для SpectrumConfig, WindowFunction
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -297,6 +422,15 @@ impl Default for SpectrumConfig {
             waterfall_rows: 50,
             sample_rate_hz: 2_000_000,
             center_freq_hz: 1_602_000_000,
+        }
+    }
+}
+
+impl Default for PeakDetector {
+    fn default() -> Self {
+        Self {
+            min_snr_db: 10.0,
+            min_bin_distance: 5,
         }
     }
 }
