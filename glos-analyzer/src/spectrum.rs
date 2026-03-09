@@ -305,14 +305,14 @@ impl PeakDetector {
         let threshold = noise_floor_db + self.min_snr_db;
         let mut candidates: Vec<(usize, f32)> = Vec::new();
 
-        for i in 1..n - 1 {
+        for i in 1..power.len().saturating_sub(1) {
             if power[i] > threshold && power[i] >= power[i - 1] && power[i] >= power[i + 1] {
                 candidates.push((i, power[i]));
             }
         }
 
         // Сортируем по убыванию
-        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
 
         // Подавление немаксимальных значений
         let mut peaks: Vec<Peak> = Vec::new();
@@ -471,8 +471,8 @@ mod tests {
     use rustfft::num_complex::Complex32;
 
     use crate::{
-        decode_iq, PowerSpectrum, SpectrumConfig, SpectrumProcessor, WaterfallBuffer,
-        WindowFunction,
+        decode_iq, spectrum::median, PeakDetector, PowerSpectrum, SpectrumConfig,
+        SpectrumProcessor, WaterfallBuffer, WindowFunction,
     };
 
     #[test]
@@ -992,5 +992,124 @@ mod tests {
         assert_eq!(rows[0], &[3.0]);
         assert_eq!(rows[1], &[4.0]);
         assert_eq!(rows[2], &[5.0]);
+    }
+
+    #[test]
+    fn test_median_odd_len() {
+        let v = vec![1.0, 5.0, 3.0];
+        let m = median(&v);
+
+        assert_eq!(m, 3.0);
+    }
+
+    #[test]
+    fn test_median_even_len() {
+        let v = vec![1.0, 2.0, 3.0, 4.0];
+        let m = median(&v);
+
+        assert_eq!(m, 2.5);
+    }
+
+    #[test]
+    fn test_median_single() {
+        let v = vec![42.0];
+        let m = median(&v);
+
+        assert_eq!(m, 42.0);
+    }
+
+    #[test]
+    fn test_median_empty() {
+        let v: Vec<f32> = vec![];
+        let m = median(&v);
+
+        assert_eq!(m, 0.0);
+    }
+
+    #[test]
+    fn test_peak_detector_single_peak() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0, -49.0, -48.0, -10.0, -47.0, -48.0],
+            timestamp_ns: 0,
+        };
+        let det = PeakDetector::new(5.0, 1);
+        let metrics = det.analyze(&spectrum, 1_000_000, 100_000_000);
+
+        assert_eq!(metrics.peaks.len(), 1);
+        assert!(metrics.peak_snr_db > 30.0);
+    }
+
+    #[test]
+    fn test_peak_detector_threshold() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0, -49.0, -48.0, -45.0, -49.0],
+            timestamp_ns: 0,
+        };
+        let det = PeakDetector::new(10.0, 1);
+        let metrics = det.analyze(&spectrum, 1_000_000, 100_000_000);
+
+        assert!(metrics.peaks.is_empty());
+    }
+
+    #[test]
+    fn test_peak_detector_min_bin_distance() {
+        // Два локальных максимума рядом (индексы 1 и 3),
+        // оба должны пройти SNR-порог, но расстояние = 2 < min_bin_distance(3),
+        // значит в результате останется ровно один пик.
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0, -5.0, -6.0, -4.0, -50.0],
+            timestamp_ns: 0,
+        };
+        // Небольшой порог SNR, чтобы пики -5 и -4 прошли:
+        let det = PeakDetector::new(0.5, 3);
+        let metrics = det.analyze(&spectrum, 1_000_000, 100_000_000);
+
+        assert_eq!(
+            metrics.peaks.len(),
+            1,
+            "We expected one peak after the suppression of nearby peaks."
+        );
+        // Опционально — проверить, что оставленный пик это сильнейший (индекс 3, power
+        // -4.0)
+        assert_eq!(metrics.peaks[0].bin_idx, 3);
+        assert!((metrics.peaks[0].power_db - (-4.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_peak_detector_strongest_peak() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0, -20.0, -10.0, -30.0, -5.0, -50.0],
+            timestamp_ns: 0,
+        };
+        let det = PeakDetector::new(5.0, 1);
+        let metrics = det.analyze(&spectrum, 1_000_000, 100_000_000);
+
+        assert!(metrics.peak_snr_db > 15.0);
+    }
+
+    #[test]
+    fn test_peak_detector_frequency_mapping() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0, -50.0, -5.0, -50.0],
+            timestamp_ns: 0,
+        };
+        let det = PeakDetector::new(5.0, 1);
+        let metrics = det.analyze(&spectrum, 4, 1000);
+
+        // бин 2 — центр
+        assert!((metrics.peak_freq_hz - 1000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_peak_detector_no_peaks() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0; 16],
+            timestamp_ns: 0,
+        };
+        let det = PeakDetector::new(5.0, 1);
+        let metrics = det.analyze(&spectrum, 1_000_000, 100_000_000);
+
+        assert!(metrics.peaks.is_empty());
+        assert_eq!(metrics.peak_snr_db, 0.0);
     }
 }
