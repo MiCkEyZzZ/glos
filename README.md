@@ -49,7 +49,6 @@ application.
 - [Contributing](#contributing)
 - [Roadmap & extensions](#roadmap--extensions)
 - [Versioning](#versioning)
-- [License](#license)
 
 ## Goals
 
@@ -421,7 +420,3 @@ Until **v0.1**:
 - file format is not yet stable.
 
 Semantic Versioning will be adopted starting from v0.1.
-
-## License
-
-See. [LICENSE](./LICENSE)

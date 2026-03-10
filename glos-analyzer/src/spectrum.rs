@@ -1,6 +1,11 @@
-use std::{cmp::Ordering, f32::consts::PI, sync::Arc};
+use std::{
+    cmp::Ordering,
+    f32::{self, consts::PI},
+    sync::Arc,
+};
 
 use glos_types::IqFormat;
+use image::{ImageBuffer, ImageEncoder, Rgb};
 use rustfft::{num_complex::Complex32, Fft, FftPlanner};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -386,6 +391,340 @@ pub fn decode_iq(
     }
 }
 
+/// Отображает спектр мощности как ASCII-график в терминале.
+pub fn render_ascii_spectrum(
+    spectrum: &PowerSpectrum,
+    metrics: &SpectrumMetrics,
+    config: &SpectrumConfig,
+    width: usize,
+    height: usize,
+) -> String {
+    let power = &spectrum.power_db;
+    let n_bins = power.len();
+
+    if n_bins == 0 || width == 0 || height == 0 {
+        return String::new();
+    }
+
+    let cols = width.min(n_bins);
+
+    // Downsample: усреднение по группам бинов
+    let group = n_bins.div_ceil(cols);
+    let values: Vec<f32> = (0..cols)
+        .filter_map(|c| {
+            let start = c * group;
+            if start >= n_bins {
+                return None;
+            }
+
+            let end = ((c + 1) * group).min(n_bins);
+
+            let avg = power[start..end].iter().sum::<f32>() / (end - start) as f32;
+            Some(avg)
+        })
+        .collect();
+
+    let min_db = values.iter().cloned().fold(f32::INFINITY, f32::min);
+    let max_db = values.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+
+    let range = (max_db - min_db).max(1.0);
+    let mut canvas = vec![vec![' '; cols]; height];
+
+    for (col, &db) in values.iter().enumerate() {
+        let normalized = ((db - min_db) / range).clamp(0.0, 1.0);
+        let bar_h = (normalized * height as f32) as usize;
+
+        for row in 0..bar_h.min(height) {
+            canvas[height - 1 - row][col] = if row == bar_h.saturating_sub(1) {
+                '▄'
+            } else {
+                '█'
+            };
+        }
+    }
+
+    let mut out = String::new();
+
+    // Заголовок
+    let center_mhz = config.center_freq_hz as f64 / 1e6;
+    let bw_mhz = config.sample_rate_hz as f64 / 1e6;
+
+    out.push_str(&format!(
+        "┌─ Spectrum: {:.3} MHz ± {:.3} MHz  FFT:{} {}  noise:{:.1}dB  peak:{:.3}MHz SNR:{:.1}dB\n",
+        center_mhz,
+        bw_mhz / 2.0,
+        config.fft_size,
+        config.window,
+        metrics.noise_floor_db,
+        metrics.peak_freq_hz / 1e6,
+        metrics.peak_snr_db,
+    ));
+
+    // db метки
+    for (row_idx, row) in canvas.iter().enumerate() {
+        let db_label = max_db - (row_idx as f32 / height as f32) * range;
+        let line: String = row.iter().collect();
+
+        if row_idx % (height / 4).max(1) == 0 {
+            out.push_str(&format!("{:+6.1}│{}\n", db_label, line));
+        } else {
+            out.push_str(&format!("      │{}\n", line));
+        }
+    }
+
+    // Ось частот
+    let left_mhz = (config.center_freq_hz as f64 - config.sample_rate_hz as f64 / 2.0) / 1e6;
+    let right_mhz = (config.center_freq_hz as f64 + config.sample_rate_hz as f64 / 2.0) / 1e6;
+
+    out.push_str(&format!("      └{}\n", "─".repeat(cols)));
+    out.push_str(&format!(
+        "      {:<width$} {:.3} MHz\n",
+        format!("{:.3} MHz", left_mhz),
+        right_mhz,
+        width = cols.saturating_sub(10)
+    ));
+
+    // Пики
+    if !metrics.peaks.is_empty() {
+        out.push_str("  Peaks: ");
+
+        for p in metrics.peaks.iter().take(5) {
+            out.push_str(&format!(
+                "{:.3}MHz({:+.1}dB,SNR{:.1}dB)  ",
+                p.freq_hz / 1e6,
+                p.power_db,
+                p.snr_db
+            ));
+        }
+
+        out.push('\n');
+    }
+
+    out
+}
+
+/// Отображает waterfall как ASCII-тепловую карту.
+pub fn render_ascii_waterfall(
+    wf: &WaterfallBuffer,
+    width: usize,
+) -> String {
+    let rows = wf.rows_ordered();
+
+    if rows.is_empty() {
+        return String::from("(waterfall empty)\n");
+    }
+
+    // Находим min/max по всей истории
+    let (mut global_min, mut global_max) = (f32::INFINITY, f32::NEG_INFINITY);
+
+    for row in &rows {
+        for &v in *row {
+            if v.is_finite() {
+                global_min = global_min.min(v);
+                global_max = global_max.max(v);
+            }
+        }
+    }
+
+    let range = (global_max - global_min).max(1.0);
+    let palette = [' ', '░', '▒', '▓', '█'];
+
+    let mut out = String::from("┌─ Waterfall (oldest→newest) ─────────────────\n");
+
+    for row in &rows {
+        out.push('│');
+
+        let cols = width.min(row.len());
+        let group = row.len().div_ceil(cols);
+
+        for c in 0..cols {
+            let start = c * group;
+
+            if start >= row.len() {
+                out.push(' ');
+                continue;
+            }
+
+            let end = ((c + 1) * group).min(row.len());
+            let avg = row[start..end].iter().sum::<f32>() / (end - start) as f32;
+            let norm = ((avg - global_min) / range).clamp(0.0, 1.0);
+            let idx = (norm * (palette.len() - 1) as f32) as usize;
+
+            out.push(palette[idx]);
+        }
+
+        out.push('\n');
+    }
+
+    out.push('└');
+    out.push_str(&"─".repeat(width + 1));
+    out.push('\n');
+    out
+}
+
+/// Экспортирует спектр в CSV строку.
+pub fn export_spectrum_csv(
+    spectrum: &PowerSpectrum,
+    config: &SpectrumConfig,
+) -> String {
+    let freqs = spectrum.bin_frequencies(config.sample_rate_hz, config.center_freq_hz);
+    let mut out = String::from("freq_hz,power_db\n");
+
+    for (freq, &pwr) in freqs.iter().zip(spectrum.power_db.iter()) {
+        out.push_str(&format!("{:.1},{:.4}\n", freq, pwr));
+    }
+
+    out
+}
+
+/// Экспортирует waterfall в CSV строку (строки = времени, столбцы = бины).
+pub fn export_waterfall_csv(wf: &WaterfallBuffer) -> String {
+    let rows = wf.rows_ordered();
+    let mut out = String::new();
+
+    for row in &rows {
+        let line = row
+            .iter()
+            .map(|v| format!("{:.3}", v))
+            .collect::<Vec<_>>()
+            .join(",");
+
+        out.push_str(&line);
+        out.push('\n');
+    }
+
+    out
+}
+
+/// Записывает спектр мощности как PNG-изображение.
+///
+/// X-ось = частота, Y-ось = мощность (логарифмическая).
+pub fn export_spectrum_png(
+    spectrum: &PowerSpectrum,
+    metrics: &SpectrumMetrics,
+    _config: &SpectrumConfig,
+    img_width: u32,
+    img_height: u32,
+) -> Result<Vec<u8>, String> {
+    let power = &spectrum.power_db;
+    let n_bins = power.len() as u32;
+
+    let min_db = metrics.noise_floor_db - 5.0;
+    let max_db = power
+        .iter()
+        .cloned()
+        .fold(f32::NEG_INFINITY, f32::max)
+        .max(min_db + 10.0);
+    let range = (max_db - min_db).max(1.0);
+
+    let mut img = ImageBuffer::<Rgb<u8>, _>::new(img_width, img_height);
+
+    // Фон
+    for p in img.pixels_mut() {
+        *p = Rgb([20u8, 20, 30]);
+    }
+
+    // Спектральная кривая
+    for x in 0..img_width {
+        let bin_idx = (x as f32 * n_bins as f32 / img_width as f32) as usize;
+        let bin_idx = bin_idx.min(power.len() - 1);
+        let db = power[bin_idx];
+        let norm = ((db - min_db) / range).clamp(0.0, 1.0);
+        let y_top = (img_height as f32 * (1.0 - norm)) as u32;
+
+        for y in y_top..img_height {
+            let heat = (norm * 255.0) as u8;
+            img.put_pixel(x, y, Rgb([heat, (heat / 2), 50]));
+        }
+    }
+
+    // Отметить пики
+    for peak in &metrics.peaks {
+        let bin_f = (peak.bin_idx as f32 / power.len() as f32) * img_width as f32;
+        let x_peak = bin_f as u32;
+        let norm = ((peak.power_db - min_db) / range).clamp(0.0, 1.0);
+        let y_peak = (img_height as f32 * (1.0 - norm)) as u32;
+        for dy in 0..3u32 {
+            if y_peak >= dy && x_peak < img_width {
+                img.put_pixel(x_peak, y_peak.saturating_sub(dy), Rgb([255, 255, 0]));
+            }
+        }
+    }
+
+    let mut buf = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut buf)
+        .write_image(
+            img.as_raw(),
+            img_width,
+            img_height,
+            image::ColorType::Rgb8.into(),
+        )
+        .map_err(|e| format!("PNG encode error: {e}"))?;
+
+    Ok(buf)
+}
+
+/// Записывает waterfall как PNG-тепловую карту.
+pub fn export_waterfall_png(
+    wf: &WaterfallBuffer,
+    img_width: u32,
+    img_height: u32,
+) -> Result<Vec<u8>, String> {
+    let rows = wf.rows_ordered();
+    if rows.is_empty() {
+        return Err("Waterfall is empty".to_string());
+    }
+
+    let (mut global_min, mut global_max) = (f32::INFINITY, f32::NEG_INFINITY);
+    for row in &rows {
+        for &v in *row {
+            if v.is_finite() {
+                global_min = global_min.min(v);
+                global_max = global_max.max(v);
+            }
+        }
+    }
+    let range = (global_max - global_min).max(1.0);
+
+    let n_rows = rows.len() as u32;
+    let n_cols = wf.cols() as u32;
+
+    let mut img = ImageBuffer::<Rgb<u8>, _>::new(img_width, img_height);
+
+    for py in 0..img_height {
+        let row_idx = (py as f32 * n_rows as f32 / img_height as f32) as usize;
+        let row_idx = row_idx.min(rows.len() - 1);
+        let row = rows[row_idx];
+
+        for px in 0..img_width {
+            let col_idx = (px as f32 * n_cols as f32 / img_width as f32) as usize;
+            let col_idx = col_idx.min(row.len() - 1);
+            let v = row[col_idx];
+            let norm = if v.is_finite() {
+                ((v - global_min) / range).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+
+            // Тепловая карта: синий → зелёный → красный
+            let (r, g, b) = heat_color(norm);
+            img.put_pixel(px, py, Rgb([r, g, b]));
+        }
+    }
+
+    let mut buf = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut buf)
+        .write_image(
+            img.as_raw(),
+            img_width,
+            img_height,
+            image::ColorType::Rgb8.into(),
+        )
+        .map_err(|e| format!("PNG encode error: {e}"))?;
+
+    Ok(buf)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Внутренние функции
 ////////////////////////////////////////////////////////////////////////////////
@@ -407,6 +746,15 @@ fn median(v: &[f32]) -> f32 {
     } else {
         sorted[mid]
     }
+}
+
+/// Тепловая карта 0.0 = синий, 0.5 = зелёный, 1.0 = красный.
+fn heat_color(t: f32) -> (u8, u8, u8) {
+    let r = (255.0 * (t * 2.0 - 1.0).clamp(0.0, 1.0)) as u8;
+    let g = (255.0 * (1.0 - (t * 2.0 - 1.0).abs()).clamp(0.0, 1.0)) as u8;
+    let b = (255.0 * (1.0 - t * 2.0).clamp(0.0, 1.0)) as u8;
+
+    (r, g, b)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -467,13 +815,31 @@ impl std::fmt::Display for WindowFunction {
 
 #[cfg(test)]
 mod tests {
+    use std::f32::consts::PI;
+
     use glos_types::IqFormat;
+    use rand::{rngs::SmallRng, Rng, SeedableRng};
     use rustfft::num_complex::Complex32;
 
     use crate::{
-        decode_iq, spectrum::median, PeakDetector, PowerSpectrum, SpectrumConfig,
+        decode_iq, export_spectrum_csv, export_waterfall_csv, render_ascii_spectrum,
+        render_ascii_waterfall, spectrum::median, PeakDetector, PowerSpectrum, SpectrumConfig,
         SpectrumProcessor, WaterfallBuffer, WindowFunction,
     };
+
+    fn make_tone_iq(
+        freq_hz: f32,
+        sample_rate: u32,
+        n: usize,
+    ) -> Vec<Complex32> {
+        (0..n)
+            .map(|i| {
+                let t = i as f32 / sample_rate as f32;
+                let phase = 2.0 * PI * freq_hz * t;
+                Complex32::new(phase.cos(), phase.sin())
+            })
+            .collect()
+    }
 
     #[test]
     fn test_window_coefficients_hann_endpoint() {
@@ -1027,6 +1393,14 @@ mod tests {
     }
 
     #[test]
+    fn test_median_calculation() {
+        assert_eq!(median(&[3.0, 1.0, 2.0]), 2.0);
+        assert_eq!(median(&[4.0, 1.0, 3.0, 2.0]), 2.5);
+        assert_eq!(median(&[5.0]), 5.0);
+        assert_eq!(median(&[]), 0.0);
+    }
+
+    #[test]
     fn test_peak_detector_single_peak() {
         let spectrum = PowerSpectrum {
             power_db: vec![-50.0, -49.0, -48.0, -10.0, -47.0, -48.0],
@@ -1111,5 +1485,221 @@ mod tests {
 
         assert!(metrics.peaks.is_empty());
         assert_eq!(metrics.peak_snr_db, 0.0);
+    }
+
+    #[test]
+    fn test_spectrum_processor_tone_detected() {
+        // Тон на 100 кГц при 2 Msps, FFT 1024
+        let sample_rate = 2_000_000u32;
+        let tone_hz = 100_000.0f32;
+        let config = SpectrumConfig {
+            fft_size: 1024,
+            window: WindowFunction::Hann,
+            avg_count: 1,
+            waterfall_rows: 10,
+            sample_rate_hz: sample_rate,
+            center_freq_hz: 1_602_000_000,
+        };
+
+        let mut proc = SpectrumProcessor::new(config.clone());
+        let samples = make_tone_iq(tone_hz, sample_rate, 4096);
+        let spectrum = proc
+            .process_block(&samples, 0)
+            .expect("must return the spectrum");
+
+        assert_eq!(spectrum.power_db.len(), 1024);
+
+        // Находим бин с максимальной мощностью
+        let max_bin = spectrum
+            .power_db
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .map(|(i, _)| i)
+            .unwrap();
+
+        // Ожидаем бин: tone_hz / (sample_rate / fft_size) + fft_size / 2
+        let bin_width = sample_rate as f32 / 1024.0;
+        let expected_bin = (1024 / 2 + (tone_hz / bin_width) as usize).min(1023);
+        let bin_tolerance = 3;
+
+        assert!(
+            max_bin.abs_diff(expected_bin) <= bin_tolerance,
+            "Tone must be in bin {expected_bin} ±{bin_tolerance}, bin {max_bin} found"
+        );
+    }
+
+    #[test]
+    fn test_spectrum_processor_averaging() {
+        let config = SpectrumConfig {
+            fft_size: 512,
+            avg_count: 4,
+            window: WindowFunction::Hann,
+            waterfall_rows: 10,
+            sample_rate_hz: 2_000_000,
+            center_freq_hz: 1_602_000_000,
+        };
+        let mut proc = SpectrumProcessor::new(config);
+
+        // Первый вызов с avg_count=4: нужно как минимум 4 окна → 512*2*4=4096 samples
+        let samples = make_tone_iq(50_000.0, 2_000_000, 8192);
+        let result = proc.process_block(&samples, 0);
+
+        assert!(
+            result.is_some(),
+            "with enough data it should return the spectrum"
+        );
+    }
+
+    #[test]
+    fn test_waterfall_buffer_ring() {
+        let mut wf = WaterfallBuffer::new(3, 8);
+
+        assert_eq!(wf.filled_rows(), 0);
+
+        wf.push(&[1.0f32; 8]);
+        wf.push(&[2.0f32; 8]);
+        wf.push(&[3.0f32; 8]);
+
+        assert_eq!(wf.filled_rows(), 3);
+
+        // Четвёртая строка вытесняет первую
+        wf.push(&[4.0f32; 8]);
+
+        assert_eq!(wf.filled_rows(), 3);
+
+        let rows = wf.rows_ordered();
+
+        // oldest first: [2, 3, 4]
+        assert!((rows[0][0] - 2.0).abs() < 1e-6);
+        assert!((rows[2][0] - 4.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_peak_detector_finds_tone() {
+        let config = SpectrumConfig {
+            fft_size: 1024,
+            avg_count: 1,
+            window: WindowFunction::Hann,
+            waterfall_rows: 10,
+            sample_rate_hz: 2_000_000,
+            center_freq_hz: 1_602_000_000,
+        };
+        let mut proc = SpectrumProcessor::new(config.clone());
+        let samples = make_tone_iq(200_000.0, 2_000_000, 4096);
+        let spectrum = proc.process_block(&samples, 0).unwrap();
+
+        let detector = PeakDetector::new(10.0, 5);
+        let metrics = detector.analyze(&spectrum, config.sample_rate_hz, config.center_freq_hz);
+
+        assert!(!metrics.peaks.is_empty(), "must find at least one peak");
+        assert!(metrics.peak_snr_db > 10.0, "Tone SNR should be > 10 dB");
+
+        // Пик должен быть близко к 200 кГц от несущей (в пределах 2 бина)
+        let expected_freq = 1_602_000_000.0 + 200_000.0;
+        let bin_width = 2_000_000.0 / 1024.0;
+        assert!(
+            (metrics.peak_freq_hz - expected_freq).abs() < bin_width * 3.0,
+            "Peak should be close to {:.0} Hz, found {:.0} Hz",
+            expected_freq,
+            metrics.peak_freq_hz
+        );
+    }
+
+    #[test]
+    fn test_peak_detector_noise_floor() {
+        // Белый шум: пики не должны превышать порог
+        let mut rng = SmallRng::seed_from_u64(42);
+        let samples: Vec<Complex32> = (0..4096)
+            .map(|_| Complex32::new(rng.gen_range(-0.01f32..0.01), rng.gen_range(-0.01f32..0.01)))
+            .collect();
+
+        let config = SpectrumConfig {
+            fft_size: 1024,
+            avg_count: 1,
+            ..Default::default()
+        };
+        let mut proc = SpectrumProcessor::new(config.clone());
+        let spectrum = proc.process_block(&samples, 0).unwrap();
+
+        let detector = PeakDetector::new(20.0, 5); // высокий порог
+        let metrics = detector.analyze(&spectrum, config.sample_rate_hz, config.center_freq_hz);
+
+        assert!(
+            metrics.peaks.is_empty() || metrics.peak_snr_db < 30.0,
+            "White noise should not produce peaks with SNR > 30 dB."
+        );
+    }
+
+    #[test]
+    fn test_export_spectrum_csv_format() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-60.0, -55.0, -50.0, -55.0],
+            timestamp_ns: 0,
+        };
+        let config = SpectrumConfig {
+            fft_size: 4,
+            sample_rate_hz: 1_000_000,
+            center_freq_hz: 1_000_000_000,
+            ..Default::default()
+        };
+        let csv = export_spectrum_csv(&spectrum, &config);
+        assert!(csv.starts_with("freq_hz,power_db\n"));
+        let lines: Vec<&str> = csv.lines().collect();
+        assert_eq!(lines.len(), 5, "header + 4 lines");
+    }
+
+    #[test]
+    fn test_export_waterfall_csv() {
+        let mut wf = WaterfallBuffer::new(3, 4);
+        wf.push(&[1.0, 2.0, 3.0, 4.0]);
+        wf.push(&[5.0, 6.0, 7.0, 8.0]);
+        let csv = export_waterfall_csv(&wf);
+        let lines: Vec<&str> = csv.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("1.000"));
+    }
+
+    #[test]
+    fn test_ascii_spectrum_renders() {
+        let config = SpectrumConfig {
+            fft_size: 64,
+            avg_count: 1,
+            ..Default::default()
+        };
+        let mut proc = SpectrumProcessor::new(config.clone());
+        let samples = make_tone_iq(100_000.0, 2_000_000, 512);
+        let spectrum = proc.process_block(&samples, 0).unwrap();
+        let detector = PeakDetector::default();
+        let metrics = detector.analyze(&spectrum, config.sample_rate_hz, config.center_freq_hz);
+        let rendered = render_ascii_spectrum(&spectrum, &metrics, &config, 60, 10);
+        assert!(rendered.contains("Spectrum"), "must contain header");
+        assert!(
+            rendered.contains('█') || rendered.contains('▄'),
+            "must contain columns"
+        );
+    }
+
+    #[test]
+    fn test_ascii_waterfall_renders() {
+        let mut wf = WaterfallBuffer::new(5, 64);
+        for i in 0..5u32 {
+            wf.push(&vec![i as f32 * 10.0 - 80.0; 64]);
+        }
+        let rendered = render_ascii_waterfall(&wf, 40);
+        assert!(rendered.contains("Waterfall"));
+        assert!(rendered.lines().count() > 3);
+    }
+
+    #[test]
+    fn test_bin_frequencies_correct() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![0.0; 4],
+            timestamp_ns: 0,
+        };
+        let freqs = spectrum.bin_frequencies(4, 10);
+        // При 4 бинах и sample_rate=4: бины [-2, -1, 0, 1] * 1Hz + center 10
+        // = [8, 9, 10, 11]
+        assert_eq!(freqs, vec![8.0, 9.0, 10.0, 11.0]);
     }
 }
