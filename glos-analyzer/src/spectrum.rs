@@ -822,9 +822,10 @@ mod tests {
     use rustfft::num_complex::Complex32;
 
     use crate::{
-        decode_iq, export_spectrum_csv, export_waterfall_csv, render_ascii_spectrum,
-        render_ascii_waterfall, spectrum::median, PeakDetector, PowerSpectrum, SpectrumConfig,
-        SpectrumProcessor, WaterfallBuffer, WindowFunction,
+        decode_iq, export_spectrum_csv, export_spectrum_png, export_waterfall_csv,
+        export_waterfall_png, render_ascii_spectrum, render_ascii_waterfall, spectrum::median,
+        PeakDetector, PowerSpectrum, SpectrumConfig, SpectrumMetrics, SpectrumProcessor,
+        WaterfallBuffer, WindowFunction,
     };
 
     fn make_tone_iq(
@@ -1701,5 +1702,94 @@ mod tests {
         // При 4 бинах и sample_rate=4: бины [-2, -1, 0, 1] * 1Hz + center 10
         // = [8, 9, 10, 11]
         assert_eq!(freqs, vec![8.0, 9.0, 10.0, 11.0]);
+    }
+
+    #[test]
+    fn test_decode_iq_empty_input() {
+        let data: Vec<u8> = vec![];
+
+        let r1 = decode_iq(&data, IqFormat::Int8);
+        let r2 = decode_iq(&data, IqFormat::Int16);
+        let r3 = decode_iq(&data, IqFormat::Float32);
+
+        assert!(r1.is_empty());
+        assert!(r2.is_empty());
+        assert!(r3.is_empty());
+    }
+
+    #[test]
+    fn test_spectrum_processor_noise_stability() {
+        let mut rng = SmallRng::seed_from_u64(123);
+        let samples: Vec<Complex32> = (0..4096)
+            .map(|_| Complex32::new(rng.gen_range(-0.5..0.5), rng.gen_range(-0.5..0.5)))
+            .collect();
+
+        let config = SpectrumConfig {
+            fft_size: 1024,
+            avg_count: 1,
+            ..Default::default()
+        };
+
+        let mut proc = SpectrumProcessor::new(config);
+        let spectrum = proc.process_block(&samples, 0).unwrap();
+
+        for p in spectrum.power_db {
+            assert!(p.is_finite());
+        }
+    }
+
+    #[test]
+    fn test_export_waterfall_png() {
+        let mut wf = WaterfallBuffer::new(4, 8);
+
+        wf.push(&[-60.0; 8]);
+        wf.push(&[-50.0; 8]);
+        wf.push(&[-40.0; 8]);
+
+        let png = export_waterfall_png(&wf, 200, 100).unwrap();
+
+        assert!(png.len() > 100);
+    }
+
+    #[test]
+    fn test_export_spectrum_png() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-60.0, -40.0, -10.0, -40.0, -60.0],
+            timestamp_ns: 0,
+        };
+
+        let metrics = SpectrumMetrics {
+            noise_floor_db: -60.0,
+            peaks: vec![],
+            peak_snr_db: 0.0,
+            peak_freq_hz: 0.0,
+        };
+
+        let config = SpectrumConfig::default();
+
+        let png = export_spectrum_png(&spectrum, &metrics, &config, 300, 200).unwrap();
+
+        assert!(png.len() > 100);
+    }
+
+    #[test]
+    fn test_ascii_spectrum_small_size() {
+        let spectrum = PowerSpectrum {
+            power_db: vec![-50.0; 16],
+            timestamp_ns: 0,
+        };
+
+        let metrics = SpectrumMetrics {
+            noise_floor_db: -50.0,
+            peaks: vec![],
+            peak_snr_db: 0.0,
+            peak_freq_hz: 0.0,
+        };
+
+        let config = SpectrumConfig::default();
+
+        let rendered = render_ascii_spectrum(&spectrum, &metrics, &config, 1, 1);
+
+        assert!(!rendered.is_empty());
     }
 }
