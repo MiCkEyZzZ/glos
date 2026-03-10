@@ -16,11 +16,11 @@ glos-types = { path = "../glos-types" }
 
 clap = { workspace = true }
 env_logger = { workspace = true }
-image = { workspace = true }
+image = { workspace = true, default-features = false, features = ["png"] }
 log = { workspace = true }
 rustfft = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-rand = { workspace = true }
+rand = { workspace = true, features = ["small_rng"] }
 tempfile = { workspace = true }
