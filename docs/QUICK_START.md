@@ -1,11 +1,9 @@
-## GLOS Replayer — Quick Test Guide
+# GLOS Replayer — Quick Test Guide
 
 This section demonstrates how to record a test signal and replay it over
 UDP using the built-in developer listener.
 
----
-
-### 1. Record a test file (if not already created)
+## 1. Record a test file (if not already created)
 
 ```bash
 cargo run -p glos-recorder --release -- \
@@ -13,9 +11,7 @@ cargo run -p glos-recorder --release -- \
   --output signal.glos --duration 5
 ```
 
----
-
-### 2. Start UDP debug listener (separate terminal)
+## 2. Start UDP debug listener (separate terminal)
 
 ```bash
 ./tools/udp_server.py
@@ -23,13 +19,11 @@ cargo run -p glos-recorder --release -- \
 
 Expected output:
 
-```
+```text
 Listening UDP on 127.0.0.1:5555
 ```
 
----
-
-### 3. Replay in real time (1× speed)
+## 3. Replay in real time (1× speed)
 
 ```bash
 cargo run -p glos-replayer --release -- \
@@ -37,9 +31,7 @@ cargo run -p glos-replayer --release -- \
   --output udp://127.0.0.1:5555
 ```
 
----
-
-### 4. Replay at 2× speed
+## 4. Replay at 2× speed
 
 ```bash
 cargo run -p glos-replayer --release -- \
@@ -48,9 +40,7 @@ cargo run -p glos-replayer --release -- \
   --speed 2.0
 ```
 
----
-
-### 5. Slow playback with looping
+## 5. Slow playback with looping
 
 ```bash
 cargo run -p glos-replayer --release -- \
@@ -59,9 +49,7 @@ cargo run -p glos-replayer --release -- \
   --speed 0.5 --loop
 ```
 
----
-
-### 6. Replay LZ4-compressed file
+## 6. Replay LZ4-compressed file
 
 ```bash
 cargo run -p glos-replayer --release -- \
@@ -70,20 +58,16 @@ cargo run -p glos-replayer --release -- \
   --speed 10.0
 ```
 
----
-
-### 7. Run unit and integration tests
+## 7. Run unit and integration tests
 
 ```bash
 cargo test -p glos-replayer
 cargo test -p glos-replayer -- --nocapture
 ```
 
----
+## Example Listener Output
 
-### Example Listener Output
-
-```
+```text
 packet=1 bytes=1472 total=1472
 0000a13f0020ab34...
 
@@ -98,9 +82,7 @@ The listener displays:
 - total received bytes
 - hex preview of packet data
 
----
-
-### Notes
+## Notes
 
 The Python UDP listener is provided to ensure consistent debugging across
 platforms without relying on system-specific tools such as:
