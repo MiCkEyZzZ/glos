@@ -1,8 +1,10 @@
 # GLOS Developer Tools
 
-This directory contains auxiliary developer tools used for debugging, testing, and inspecting GLOS data streams.
+This directory contains auxiliary developer tools used for debugging, testing,
+and inspecting GLOS data streams.
 
-These tools are **not part of the production binaries** and are intended only for development and diagnostics.
+These tools are **not part of the production binaries** and are intended only for
+development and diagnostics.
 
 ## UDP Debug Listener
 
@@ -16,7 +18,8 @@ It allows developers to verify:
 - byte throughput
 - raw payload preview (hex)
 
-This tool replaces ad-hoc utilities like `nc`, `socat`, or `xxd` and works consistently across platforms.
+This tool replaces ad-hoc utilities like `nc`, `socat`, or `xxd` and works
+consistently across platforms.
 
 ### Requirements
 
@@ -40,7 +43,7 @@ python3 tools/udp_server.py
 
 Default address:
 
-```
+```text
 127.0.0.1:5555
 ```
 
@@ -64,7 +67,7 @@ cargo run -p glos-replayer --release -- \
 
 Example output:
 
-```
+```text
 Listening UDP on 127.0.0.1:5555
 packets=50 bytes=2531494 rate=0.10 MB/s
 packets=100 bytes=5001000 rate=0.20 MB/s
@@ -94,7 +97,8 @@ Different systems ship incompatible versions of networking tools:
 - `socat`
 - `xxd`
 
-This script provides a **deterministic and portable debugging method** for GLOS UDP streams.
+This script provides a **deterministic and portable debugging method** for
+GLOS UDP streams.
 
 ### Scope
 

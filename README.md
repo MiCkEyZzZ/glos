@@ -42,6 +42,8 @@ application.
 - [Quick start](#quick-start)
 - [Testing](#testing)
 - [Recorder Usage](#recorder-usage)
+- [Replayer Usage](#replayer-usage)
+- [Analyzer Usage](#analyzer-usage)
 - [.glos file format](#glos-file-format-short)
 - [Integration](#integration)
 - [Project Maturity](#project-maturity)
@@ -329,6 +331,101 @@ cargo run -p glos-recorder --release --features hackrf -- \
 ```zsh
 cargo run -p glos-core --example read_glos_file -- signal.glos
 cargo run -p glos-core --example read_glos_file -- signal_lz4.glos
+```
+
+## Analyzer Usage
+
+The `glos-analyzer` tool allows inspecting `.glos` recordings,
+computing FFT spectra and exporting analysis results.
+
+### 1. Record a test file (if none exists)
+
+```zsh
+cargo run -p glos-recorder --release -- \
+  --device sim \
+  --freq 1602MHz \
+  --rate 2MHz \
+  --output signal.glos \
+  --duration 5
+```
+
+### 2. Basic run — ASCII spectrum in terminal
+
+```zsh
+cargo run -p glos-analyzer --release -- \
+  --input signal.glos
+```
+
+### 3. Headless mode (statistics only)
+
+```zsh
+cargo run -p glos-analyzer --release -- \
+  --input signal.glos \
+  --no-display
+```
+
+### 4. Custom FFT parameters
+
+```zsh
+cargo run -p glos-analyzer --release -- \
+  --input signal.glos \
+  --fft-size 2048 \
+  --window blackman \
+  --avg 16
+```
+
+### 5. Export spectrum and waterfall
+
+```zsh
+cargo run -p glos-analyzer --release -- \
+  --input signal.glos \
+  --export-png spectrum.png \
+  --export-csv spectrum.csv \
+  --waterfall-png waterfall.png \
+  --waterfall-csv waterfall.csv \
+  --no-display
+```
+
+### 6. Verify exported files
+
+```zsh
+ls -lh spectrum.png spectrum.csv waterfall.png waterfall.csv
+```
+
+### 7. Analyze LZ4-compressed recording
+
+```zsh
+cargo run -p glos-recorder --release -- \
+  --device sim \
+  --freq 433MHz \
+  --rate 2MHz \
+  --compress lz4 \
+  --output signal_lz4.glos \
+  --duration 5
+```
+
+```zsh
+cargo run -p glos-analyzer --release -- \
+  --input signal_lz4.glos \
+  --no-display
+```
+
+### 8. Run analyzer unit tests
+
+```zsh
+cargo test -p glos-analyzer
+```
+
+### 9. Tests with logs enabled
+
+```zsh
+RUST_LOG=info cargo test -p glos-analyzer -- --nocapture
+```
+
+### 10. Run all workspace tests
+
+```zsh
+cargo test --workspace
 ```
 
 ## .glos file format (short)
